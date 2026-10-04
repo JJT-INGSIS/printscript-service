@@ -27,3 +27,7 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
 }
+
+tasks.test {
+    inputs.dir("docs")
+}
