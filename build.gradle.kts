@@ -31,3 +31,7 @@ dependencies {
 tasks.test {
     inputs.dir("docs")
 }
+
+tasks.bootJar {
+    archiveFileName.set("app.jar")
+}
