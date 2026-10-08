@@ -98,3 +98,28 @@ Una vez por clon:
 - `pre-push`: corre `check` completo, con los tests.
 
 El detalle está en el README de `gradle-conventions`.
+
+## CI, publicación y branches — SNI-23
+
+Crear ramas por cambio desde `dev` y abrir PR hacia dev. Promover mediante PR `dev` → `main`, manteniendo main como default branch. Usar squash para cambios individuales y merge commit para promociones. Proteger ambas ramas con PR, CI requerido y actualización con la base, sin aprobación humana obligatoria.
+
+El caller `.github/workflows/pipeline.yml` define cuándo ejecutar y usa `kotlin-service-pipeline.yml@v0.3.0` de [github-workflows](https://github.com/JJT-INGSIS/github-workflows). El tag debe existir antes de integrar los callers definitivos; la validación del candidato usa su SHA como explica el README central.
+
+| Evento | Resultado |
+| --- | --- |
+| PR a dev/main | CI con `build`; no publica |
+| Push a dev | CI → publicar únicamente la imagen de PrintScript |
+| Push a main | CI; promoción a prod pendiente de SNI-25 |
+| Ejecución manual en dev/main | CI; activar `publish` para publicar bootstrap |
+
+La ejecución manual se habilita después de integrar el caller a main. Se conservan los IDs del check `verify / verify / build`; elegir el nombre real de Actions en las reglas de branches. Un CI fallido o cancelado no habilita publicación.
+
+Paquete de aplicación: `ghcr.io/jjt-ingsis/printscript-service`. Es una imagen del servicio HTTP, distinta del artefacto Maven `printscript-v1`. El resumen registra el SHA, Git tree, plataformas y digest. Usar `image-ref` (`imagen@sha256:...`) para desplegar; los tags son `sha-<SHA completo>` y `run-<run_id>-<run_attempt>`. Esta aplicación no necesita PostgreSQL.
+
+Los secrets `GH_PACKAGES_USER` y `GH_PACKAGES_READ_TOKEN` deben permitir descargar la convención y la biblioteca PrintScript. Preferir su configuración de organización con acceso a este repo. Se utilizan en Gradle y como secretos BuildKit; la publicación a GHCR usa el `GITHUB_TOKEN` automático con `packages: write`.
+
+Configurar la variable de repositorio `DOCKER_PLATFORMS` cuando se acuerde la arquitectura de las VMs con Thiago; el fallback es `linux/amd64`. También se admiten `linux/arm64` y `linux/amd64,linux/arm64`.
+
+Preparar GitHub Environments `dev` (solo branch dev) y `prod` (solo main). SNI-25 resolverá variables `SSH_HOST`, `SSH_USER`, `SSH_PORT` y secrets `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS` del ambiente elegido. Los valores reales y SSH se verifican cuando estén las VMs y el stack.
+
+Ver contrato reusable, outputs, permisos, visibilidad y secuencia de integración en el [README central](https://github.com/JJT-INGSIS/github-workflows/blob/main/README.md). Las primeras publicaciones y comprobaciones completas quedan pendientes de integrar/publicar esa versión.
