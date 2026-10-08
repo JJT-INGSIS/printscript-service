@@ -101,9 +101,9 @@ El detalle está en el README de `gradle-conventions`.
 
 ## CI, publicación y branches — SNI-23
 
-Crear ramas por cambio desde `dev` y abrir PR hacia dev. Promover mediante PR `dev` → `main`, manteniendo main como default branch. Usar squash para cambios individuales y merge commit para promociones. Proteger ambas ramas con PR, CI requerido y actualización con la base, sin aprobación humana obligatoria.
+Crear ramas por cambio desde `dev` y abrir PR hacia dev. Promover mediante PR `dev` → `main`, con `dev` como default branch. Usar squash para cambios individuales y merge commit para promociones. Proteger ambas ramas con PR, CI requerido y actualización con la base, sin aprobación humana obligatoria.
 
-El caller `.github/workflows/pipeline.yml` define cuándo ejecutar y usa `kotlin-service-pipeline.yml@v0.3.0` de [github-workflows](https://github.com/JJT-INGSIS/github-workflows). El tag debe existir antes de integrar los callers definitivos; la validación del candidato usa su SHA como explica el README central.
+El caller `.github/workflows/pipeline.yml` define cuándo ejecutar y usa `kotlin-service-pipeline.yml@v0.3.1` de [github-workflows](https://github.com/JJT-INGSIS/github-workflows). El tag debe existir antes de integrar los callers definitivos; la validación del candidato usa su SHA como explica el README central.
 
 | Evento | Resultado |
 | --- | --- |
@@ -112,7 +112,7 @@ El caller `.github/workflows/pipeline.yml` define cuándo ejecutar y usa `kotlin
 | Push a main | CI; promoción a prod pendiente de SNI-25 |
 | Ejecución manual en dev/main | CI; activar `publish` para publicar bootstrap |
 
-La ejecución manual se habilita después de integrar el caller a main. Se conservan los IDs del check `verify / verify / build`; elegir el nombre real de Actions en las reglas de branches. Un CI fallido o cancelado no habilita publicación.
+La ejecución manual requiere el caller en la default branch, actualmente `dev`. Se conservan los IDs del check `verify / verify / build`; elegir el nombre real de Actions en las reglas de branches. Un CI fallido o cancelado no habilita publicación.
 
 Paquete de aplicación: `ghcr.io/jjt-ingsis/printscript-service`. Es una imagen del servicio HTTP, distinta del artefacto Maven `printscript-v1`. El resumen registra el SHA, Git tree, plataformas y digest. Usar `image-ref` (`imagen@sha256:...`) para desplegar; los tags son `sha-<SHA completo>` y `run-<run_id>-<run_attempt>`. Esta aplicación no necesita PostgreSQL.
 
