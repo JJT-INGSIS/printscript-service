@@ -19,5 +19,4 @@ COPY --from=build /app/build/libs/app.jar app.jar
 
 USER 10001:10001
 EXPOSE 8080
-# SNI-25 dev-only rollback drill. Revert this change immediately after the test.
-ENTRYPOINT ["/bin/sh", "-c", "echo 'SNI-25 controlled startup failure for dev rollback verification' >&2; exit 42"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
