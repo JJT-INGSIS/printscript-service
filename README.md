@@ -98,3 +98,69 @@ Una vez por clon:
 - `pre-push`: corre `check` completo, con los tests.
 
 El detalle está en el README de `gradle-conventions`.
+
+## CI/CD y branches — SNI-23 / SNI-25
+
+Crear ramas cortas desde `dev`, abrir PR a dev y promover mediante PR dev → main.
+Dev es la default branch; usar squash para cambios individuales y merge commit
+para promociones. Main debe exigir PR y CI con base actualizada, aplicar las reglas
+a administradores y no admitir bypass de pushes directos. El merge de esa PR es
+la autorización humana; no se agrega otro approval en GitHub Environments.
+
+El caller `.github/workflows/pipeline.yml` prepara
+`kotlin-service-pipeline.yml@v0.5.1` de [github-workflows](https://github.com/JJT-INGSIS/github-workflows).
+Esta versión espera la convergencia de un rollback al digest esperado antes de
+declarar la recuperación; una candidata fallida mantiene la Action en rojo.
+**Esta versión debe integrarse, publicarse y comprobarse antes de integrar el caller.**
+El candidato se prueba por SHA siguiendo la
+[guía central](https://github.com/JJT-INGSIS/github-workflows/blob/main/docs/sni-25-integration.md).
+
+| Evento | Resultado |
+| --- | --- |
+| PR dev/main | `build` completo y agregador requerido; sin publicación ni despliegue |
+| Push dev | CI → publicar imagen; con CD habilitado, desplegar y verificar dev |
+| Push main | CI → recuperar digest verificado del mismo Git tree → prod, sin reconstruir |
+| Manual dev | CI; publicación opcional o incluida por CD habilitado |
+| Manual main | CI y reintento de promoción; activar `publish` falla |
+
+CI fallido o cancelado bloquea CD. `Resultado requerido` solo comprueba el estado
+de CI y no repite Gradle. Conservar el check `verify / verify / build` durante la
+transición; exigir el agregador nuevo cuando aparezca y pase en GitHub.
+
+Imagen pública: `ghcr.io/jjt-ingsis/printscript-service`. Usar siempre `imagen@sha256:...`;
+los tags `sha-<SHA completo>` y `run-<run_id>-<run_attempt>` sirven para localizarla.
+El resumen y las etiquetas registran origen, Git tree, digest e intento de build.
+Prod exige coincidencia exacta de todo el repositorio, incluso README/workflows;
+sin evidencia confiable falla. Dev puede haber avanzado al promover.
+
+Secrets `GH_PACKAGES_USER` y `GH_PACKAGES_READ_TOKEN`: lectura de dependencias
+Gradle y secretos BuildKit. GHCR usa `GITHUB_TOKEN` automático con `packages: write`;
+CD agrega lectura de Actions/PR y `deployments: write`, sin otro PAT para las VMs.
+`DOCKER_PLATFORMS` tiene default linux/amd64, compatible con las VMs x64.
+
+En **este repo**, environments dev (solo dev) y prod (solo main): variables
+`SSH_HOST`, `SSH_USER`, `SSH_PORT`; secrets `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS`.
+Los resuelve el job final del workflow reutilizable. No son las contraseñas de
+runtime ni activan el perfil Spring. Configurar una clave dedicada y host keys
+verificadas con Thiago.
+
+Habilitación gradual con variables **de repositorio**:
+
+- Sin `CD_ENABLED=true`, continúa CI/publicación sin despliegue remoto.
+- Habilitar dev después del bootstrap, credenciales y revisión fija de infra.
+- Configurar `PROD_DEPLOY_ENABLED=true` solo después de verificar las reglas
+  completas de main y prod. El 13/10/2026 se activó y se verificó `Do not allow
+  bypassing the above settings` en main: PR, CI y base actualizada se exigen también
+  a administradores. El despliegue automático a producción sigue deshabilitado.
+
+El despliegue cambia solo esta aplicación y conserva bases y otras imágenes.
+Una pérdida SSH se reconcilia con el journal de la VM; rollback mantiene la Action
+roja y no revierte migraciones ni datos. Conservar contratos y esquemas compatibles
+con la versión anterior. Una VM apagada produce fallo, sin encendido automático.
+
+Ver [operación y recuperación SNI-25](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-25-cd.md).
+La integración por tag, resolución de environment secrets y el recorrido real
+dev → prod quedan pendientes de la configuración y pruebas con VMs encendidas.
+
+El paquete de aplicación es distinto del artefacto Maven printscript-v1.
+PrintScript no necesita PostgreSQL; el CD no agrega una base a este servicio.
