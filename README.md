@@ -164,3 +164,12 @@ dev → prod quedan pendientes de la configuración y pruebas con VMs encendidas
 
 El paquete de aplicación es distinto del artefacto Maven printscript-v1.
 PrintScript no necesita PostgreSQL; el CD no agrega una base a este servicio.
+
+## SNI-43 — actualización de herramientas de CD
+
+El caller preparado usa `github-workflows@v0.6.0`. Integrar únicamente después de
+publicar y verificar esa versión central con el SHA definitivo de infra. La versión
+nueva admite el stack anterior; actualizar los tres callers del ambiente antes de
+incorporar NGINX/Asset/UI. No reejecutar versiones antiguas para operar el stack ampliado.
+El procedimiento y la protección del registro están en
+[rollout SNI-43](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-43-cd.md).
