@@ -162,6 +162,12 @@ Ver [operación y recuperación SNI-25](https://github.com/JJT-INGSIS/snippet-se
 La integración por tag, resolución de environment secrets y el recorrido real
 dev → prod quedan pendientes de la configuración y pruebas con VMs encendidas.
 
+## SNI-47 — Ejecución incremental
+
+Además de validar, el servicio expone sesiones internas de ejecución TEST e INTERACTIVE.
+Ver [API, cancelación, límites y pruebas](docs/execution.md). Estas rutas no deben
+publicarse al navegador; Snippets autoriza y Language adapta su transporte.
+
 El paquete de aplicación es distinto del artefacto Maven printscript-v1.
 PrintScript no necesita PostgreSQL; el CD no agrega una base a este servicio.
 
