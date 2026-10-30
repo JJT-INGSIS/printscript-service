@@ -27,7 +27,7 @@ class ExecutionRegistry(
         if (command.code.utf8Size() > limits.codeBytes || command.inputs.any { it.utf8Size() > limits.inputBytes }) {
             return rejected(Rejection.INVALID, "request-too-large")
         }
-        if (closed.get() || !capacity.tryAcquire()) return rejected(Rejection.CAPACITY, "execution-capacity-exceeded")
+        if (closed.get() || !capacity.tryAcquire()) return rejected(Rejection.CAPACITY, "execution-capacity-exhausted")
         val id = UUID.randomUUID()
         val session =
             ExecutionSession(id = id, command = command, limits = limits, journal = EventJournal(id, limits, sizeOf))
