@@ -93,7 +93,7 @@ class ExecutionTest {
             waitFor { waiting.descriptor().state == ExecutionState.WAITING_INPUT }
             assertThat(
                 registry.start(ExecutionCommand("", "1.0", ExecutionMode.TEST)),
-            ).isInstanceOf(ExecutionResult.Rejected::class.java)
+            ).isEqualTo(ExecutionResult.Rejected(Rejection.CAPACITY, "execution-capacity-exhausted"))
             waiting.cancel()
             assertThat(waiting.stopped.await(2, TimeUnit.SECONDS)).isTrue()
             assertThat(waiting.descriptor().state).isEqualTo(ExecutionState.CANCELLED)
