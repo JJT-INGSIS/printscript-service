@@ -88,3 +88,15 @@ ejecutar, eventos y errores; página `/processor`) y `MissingProcessorRevisionTe
 
 Con el jar real, el 30/10/2026, `GET /processor` publicó el mismo SHA-256 que
 `shasum -a 256 build/libs/app.jar`.
+
+### Evidencia con Compose — 31/10/2026
+
+Imagen construida con `docker compose build printscript-service` desde infra:
+
+| Comprobación | Resultado |
+| --- | --- |
+| `sha256sum /app/app.jar` dentro de la imagen | `fc463ab9…a8cb79` |
+| `artifact` de `GET /processor` | `sha256:fc463ab9…a8cb79`: coincide |
+| Header de `POST /validate` | `sha256-v1:602264bf…cc6341` = `capabilities.validate` |
+| `remote->'processor'` en la auditoría de Snippets | `sha256-v1:c67a84aa…77cda6` = `capabilities.execute` |
+| Aceptación SNI-53 (`scripts/verify_us8_10.py`) | 15/15, incluso reiniciando y recreando PrintScript |
