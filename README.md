@@ -7,6 +7,7 @@ Servicio HTTP de lenguaje de Snippet Searcher. Recibe código PrintScript y lo p
 | Operación | Endpoint | Contrato |
 | --- | --- | --- |
 | Validar código de PrintScript 1.0 o 1.1 | `POST /validate` | [docs/validation.md](./docs/validation.md) |
+| Consultar la identidad del procesador (interno) | `GET /processor` | [docs/processor-identity.md](./docs/processor-identity.md) |
 
 El contrato documenta el pedido, las respuestas, los errores, el alcance de la validación y el catálogo de reglas. Sus ejemplos se ejecutan como tests en cada build.
 
@@ -24,6 +25,7 @@ curl -s -X POST http://localhost:8080/validate -H "Content-Type: application/jso
 | `language` | Las versiones soportadas y el lexer, parser y validador de cada una. |
 | `diagnostic` | Traduce cada error de la biblioteca a regla, mensaje, línea y columna. |
 | `web` | Convierte las excepciones en respuestas de error con formato Problem Details. |
+| `processor` | Identidad del build que procesa: header `Processor-Revision` y `GET /processor`. |
 
 ## Build
 
@@ -170,6 +172,13 @@ publicarse al navegador; Snippets autoriza y Language adapta su transporte.
 
 El paquete de aplicación es distinto del artefacto Maven printscript-v1.
 PrintScript no necesita PostgreSQL; el CD no agrega una base a este servicio.
+
+## SNI-76 — Identidad del procesador
+
+Cada respuesta de validación y de ejecución trae `Processor-Revision`: la revisión
+del build exacto que la produjo, calculada con el SHA-256 del `app.jar` y la
+configuración de esa capacidad. No se deduce de la versión de lenguaje. Ver
+[contrato, cálculo y cómo verificarlo en una imagen](docs/processor-identity.md).
 
 ## SNI-43 — actualización de herramientas de CD
 
