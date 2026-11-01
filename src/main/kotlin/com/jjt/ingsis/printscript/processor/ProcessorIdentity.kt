@@ -1,6 +1,7 @@
 package com.jjt.ingsis.printscript.processor
 
 import com.jjt.ingsis.printscript.execution.ExecutionLimits
+import com.jjt.ingsis.printscript.formatting.FormattingLimits
 import java.security.MessageDigest
 import java.util.HexFormat
 
@@ -9,22 +10,25 @@ const val PROCESSOR_REVISION_HEADER = "Processor-Revision"
 class ProcessorIdentity(
     artifact: ProcessorArtifact,
     limits: ExecutionLimits,
+    formattingLimits: FormattingLimits,
 ) {
     val artifactDigest: String? = artifact.digest()
     val validation: String? = revision("validate", "")
     val execution: String? = revision("execute", limits.canonical())
+    val formatting: String? = revision("format", formattingLimits.canonical())
 
     fun revisionFor(path: String): String? =
         when {
             path == "/validate" -> validation
             path == "/executions" || path.startsWith("/executions/") -> execution
+            path == "/formatting" || path.startsWith("/formatting/") -> formatting
             else -> null
         }
 
     fun manifest(): Map<String, Any?> =
         mapOf(
             "artifact" to artifactDigest?.let { "sha256:$it" },
-            "capabilities" to mapOf("validate" to validation, "execute" to execution),
+            "capabilities" to mapOf("validate" to validation, "execute" to execution, "format" to formatting),
         )
 
     private fun revision(

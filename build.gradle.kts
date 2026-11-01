@@ -23,7 +23,7 @@ repositories {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("tools.jackson.module:jackson-module-kotlin")
-    implementation("io.github.jjt-ingsis.printscript:printscript-v1:1.1.0")
+    implementation("io.github.jjt-ingsis.printscript:printscript-v1:1.2.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
 }
