@@ -1,12 +1,13 @@
 # PrintScript Service
 
-Servicio HTTP de lenguaje de Snippet Searcher. Recibe código PrintScript y lo procesa con la biblioteca publicada `printscript-v1:1.1.0`. No guarda snippets ni tiene base de datos.
+Servicio HTTP de lenguaje de Snippet Searcher. Recibe código PrintScript y lo procesa con la biblioteca publicada `printscript-v1:1.2.0`. No guarda snippets ni tiene base de datos.
 
 ## Operaciones
 
 | Operación | Endpoint | Contrato |
 | --- | --- | --- |
 | Validar código de PrintScript 1.0 o 1.1 | `POST /validate` | [docs/validation.md](./docs/validation.md) |
+| Formatear código y consultar o validar sus reglas | `GET /formatting/rules`, `POST /formatting/rules/check`, `POST /formatting` | [docs/formatting.md](./docs/formatting.md) |
 | Consultar la identidad del procesador (interno) | `GET /processor` | [docs/processor-identity.md](./docs/processor-identity.md) |
 
 El contrato documenta el pedido, las respuestas, los errores, el alcance de la validación y el catálogo de reglas. Sus ejemplos se ejecutan como tests en cada build.
@@ -22,6 +23,7 @@ curl -s -X POST http://localhost:8080/validate -H "Content-Type: application/jso
 | Paquete | Responsabilidad |
 | --- | --- |
 | `validation` | El endpoint: recibe el pedido, valida y arma la respuesta. |
+| `formatting` | Formato: catálogo de reglas, validación de reglas, formateo y sus límites. |
 | `language` | Las versiones soportadas y el lexer, parser y validador de cada una. |
 | `diagnostic` | Traduce cada error de la biblioteca a regla, mensaje, línea y columna. |
 | `web` | Convierte las excepciones en respuestas de error con formato Problem Details. |
@@ -185,3 +187,10 @@ configuración de esa capacidad. No se deduce de la versión de lenguaje. Ver
 El caller usa `github-workflows@v0.6.2`, con la revisión fija de infra que corrige el doble escape de healthchecks. Antes de reaplicar infraestructura o probar reconciliación, actualizar los cuatro callers del ambiente y esperar que no haya ejecuciones activas. No reejecutar herramientas antiguas sobre el stack ampliado.
 El procedimiento y la protección del registro están en
 [rollout SNI-43](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-43-cd.md).
+
+## SNI-59 — Formato
+
+El servicio formatea con el formatter real de la biblioteca y publica el catálogo
+de reglas de cada versión. Desde la 1.2.0 el catálogo y la validación por regla
+vienen de la biblioteca: el servicio solo agrega las descripciones y los límites.
+Ver [API, motivos de error, límites y decisiones](docs/formatting.md).

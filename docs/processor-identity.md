@@ -15,6 +15,7 @@ La identidad no se deduce de `1.0`/`1.1` y no cambia los bodies ni el NDJSON.
 | Artefacto | SHA-256 del `app.jar` que está corriendo: código del servicio, biblioteca `printscript-v1` y defaults. Se lee del único jar del classpath (`java -jar /app/app.jar`) |
 | Revisión de **validar** | `sha256-v1:` + SHA-256 de `validate\|<artefacto>\|` |
 | Revisión de **ejecutar** | `sha256-v1:` + SHA-256 de `execute\|<artefacto>\|<límites de ejecución efectivos>` |
+| Revisión de **formatear** | `sha256-v1:` + SHA-256 de `format\|<artefacto>\|<límites de formato efectivos>` |
 
 Cada capacidad tiene su propia revisión: cambiar un límite de ejecución
 (`EXECUTION_TOTAL_SECONDS`, por ejemplo) cambia la revisión de ejecutar, pero no
@@ -32,17 +33,17 @@ es del artefacto que corre, no del código fuente.
 
 | Elemento | Detalle |
 | --- | --- |
-| Header `Processor-Revision` | En **toda** respuesta de `POST /validate` (revisión de validar) y de `/executions/**`: inicio, consulta, eventos, input y cancelación (revisión de ejecutar). También en errores como `422` o `404`. Formato `sha256-v1:<64 hex>` |
-| `GET /processor` | Página interna: `{"artifact":"sha256:<hex>","capabilities":{"validate":"sha256-v1:…","execute":"sha256-v1:…"}}`. Sin jar, los valores son `null` |
+| Header `Processor-Revision` | En **toda** respuesta de `POST /validate` (revisión de validar) y de `/executions/**`: inicio, consulta, eventos, input y cancelación (revisión de ejecutar), y de `/formatting/**` (revisión de formatear). También en errores como `422` o `404`. Formato `sha256-v1:<64 hex>` |
+| `GET /processor` | Página interna: `{"artifact":"sha256:<hex>","capabilities":{"validate":"sha256-v1:…","execute":"sha256-v1:…","format":"sha256-v1:…"}}`. Sin jar, los valores son `null` |
 
 Lo que acredita una operación es **el header de su propia respuesta**. `GET /processor`
 sirve para ver qué revisión está disponible (por ejemplo, antes de que SNI-70
 active un parser), pero no prueba quién ejecutó: durante un reemplazo, la consulta
 la puede contestar un build y la operación hacerla otro.
 
-Formato y lint (SNI-59/60) usan el mismo header y el mismo formato. Su revisión es
-el artefacto más la configuración que afecte a esa capacidad, y se agrega a
-`ProcessorIdentity.revisionFor` y a `capabilities`.
+Formato (SNI-59) usa el mismo header en todo `/formatting/**`, con la revisión
+`format` (artefacto + límites de formato), y aparece en `capabilities.format`.
+Lint (SNI-60) va a seguir el mismo camino.
 
 ## Cómo verificarlo en una imagen
 

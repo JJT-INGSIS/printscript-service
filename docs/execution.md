@@ -11,7 +11,7 @@ sesiones públicas. El navegador **no** debe acceder directamente a estas rutas.
 Este servicio no guarda tests, no compara expectativas, no maneja ownership y no
 recibe identidades ni UUIDs de snippets. Debe seguir en la red interna.
 
-Se usa `printscript-v1:1.1.0` publicado en Packages, no un proyecto local sustituido.
+Se usa `printscript-v1:1.2.0` publicado en Packages, no un proyecto local sustituido.
 Cada sesión crea lector, lexer, parser, intérprete y entorno independientes. En 1.0
 se ejecutan sus capacidades propias; `readInput` y `readEnv` pertenecen a 1.1.
 El proveedor de variables está vacío: ni `PATH` ni secretos del servicio son visibles.
