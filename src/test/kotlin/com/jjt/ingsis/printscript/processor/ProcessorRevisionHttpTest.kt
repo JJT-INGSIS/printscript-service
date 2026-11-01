@@ -52,12 +52,27 @@ class ProcessorRevisionHttpTest(
     }
 
     @Test
+    fun `every formatting answer carries the formatting revision`() {
+        val catalog = get("/formatting/rules?version=1.1")
+        val formatted = post("/formatting", """{"code":"let a:number=1;","version":"1.1","rules":{}}""")
+        val rejected = post("/formatting/rules/check", """{"version":"9.9","rules":{}}""")
+
+        assertThat(catalog.statusCode()).isEqualTo(200)
+        assertThat(revision(catalog)).isEqualTo(identity.formatting).isNotNull().isNotEqualTo(identity.validation)
+        assertThat(formatted.statusCode()).isEqualTo(200)
+        assertThat(revision(formatted)).isEqualTo(identity.formatting)
+        assertThat(rejected.statusCode()).isEqualTo(422)
+        assertThat(revision(rejected)).isEqualTo(identity.formatting)
+    }
+
+    @Test
     fun `the processor page lists the artifact and the revision of each capability`() {
         val page = mapper.readTree(get("/processor").body())
 
         assertThat(page.path("artifact").asString()).isEqualTo("sha256:" + "c".repeat(64))
         assertThat(page.path("capabilities").path("validate").asString()).isEqualTo(identity.validation)
         assertThat(page.path("capabilities").path("execute").asString()).isEqualTo(identity.execution)
+        assertThat(page.path("capabilities").path("format").asString()).isEqualTo(identity.formatting)
     }
 
     private fun revision(response: HttpResponse<String>): String? =
