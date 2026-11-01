@@ -116,3 +116,20 @@ Validar y ejecutar no cambian.
 - `FormattingHttpTest`: catálogo, versión no soportada, chequeo, formato, Problem Details, body mal formado.
 - `FormattingRuleDescriptionsTest`: toda regla de la biblioteca tiene descripción.
 - `ProcessorIdentityTest` y `ProcessorRevisionHttpTest`: revisión `format` y header en `/formatting/**`.
+
+### Evidencia con Compose — 01/11/2026
+
+Imagen construida desde infra con
+`docker compose --profile ui --profile ingress up -d --build printscript-service snippets-service`:
+
+| Comprobación | Resultado |
+| --- | --- |
+| `sha256sum /app/app.jar` dentro de la imagen | `7119dd89…ecd2`, igual a `artifact` de `GET /processor` |
+| `capabilities.format` en `GET /processor` | `sha256-v1:2001166d…5289` |
+| `GET /formatting/rules?version=1.1` | `200`, 12 reglas (incluye `mandatory-line-breaks-inside-if`), header = `capabilities.format` |
+| `POST /formatting` de `if(true){println(1);}` con llave abajo, saltos dentro del `if` y sangría 2 | `200`, `"if(true)\n{\n  println(1);\n}"`, header = `capabilities.format` |
+| Reglas inválidas en 1.0 (`indent-inside-if`, `"true"`, `11`) | `422` `invalid-formatting-rules` con `unavailable-in-version`, `wrong-type` y `out-of-range` |
+| Texto sin cerrar | `200`, `formatted:false`, `UNTERMINATED_STRING` en 1:9 |
+| Versión `9.9` | `422` con `supportedVersions` |
+| `POST /validate` | Sin cambios: válido, con la revisión de validar |
+| Aceptación SNI-53 (`scripts/verify_us8_10.py`) | 15/15: la 1.2.0 no cambió validar ni ejecutar |
