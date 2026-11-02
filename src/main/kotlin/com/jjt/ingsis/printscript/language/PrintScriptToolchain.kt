@@ -12,6 +12,8 @@ class PrintScriptToolchain(
     private val parser: Parser,
     private val validator: Validator,
 ) {
+    fun statements(code: String): printscript.statement.StatementSource = parser.parse(tokens(code))
+
     fun validate(code: String): ValidationResult = validator.validate(parser.parse(tokens(code)))
 
     fun tokens(code: String): TokenSource = lexer.tokenize(SourceReaderFactory.fromString(code))

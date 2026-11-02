@@ -1,5 +1,7 @@
 # PrintScript Service
 
+SNI-60 incorpora lint y catálogo reales: [contrato, límites y decisiones](docs/linting.md).
+
 Servicio HTTP de lenguaje de Snippet Searcher. Recibe código PrintScript y lo procesa con la biblioteca publicada `printscript-v1:1.2.0`. No guarda snippets ni tiene base de datos.
 
 ## Operaciones

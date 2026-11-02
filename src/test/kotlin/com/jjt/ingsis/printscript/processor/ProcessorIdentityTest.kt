@@ -2,6 +2,7 @@ package com.jjt.ingsis.printscript.processor
 
 import com.jjt.ingsis.printscript.execution.ExecutionLimits
 import com.jjt.ingsis.printscript.formatting.FormattingLimits
+import com.jjt.ingsis.printscript.linting.LintingLimits
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -10,6 +11,26 @@ import java.security.MessageDigest
 import java.util.HexFormat
 
 class ProcessorIdentityTest {
+    @Test
+    fun `lint revision covers artifact and limits independently of other capabilities`() {
+        val usual = ProcessorIdentity({ "a".repeat(64) }, ExecutionLimits(), FormattingLimits())
+        val changed =
+            ProcessorIdentity(
+                artifact = { "a".repeat(64) },
+                limits = ExecutionLimits(),
+                formattingLimits = FormattingLimits(),
+                lintingLimits = LintingLimits(diagnosticLimit = 2),
+            )
+        val other = ProcessorIdentity({ "b".repeat(64) }, ExecutionLimits(), FormattingLimits())
+        assertThat(changed.linting).isNotEqualTo(usual.linting).isNotEqualTo(other.linting)
+        assertThat(changed.validation).isEqualTo(usual.validation)
+        assertThat(changed.execution).isEqualTo(usual.execution)
+        assertThat(changed.formatting).isEqualTo(usual.formatting)
+        assertThat(usual.revisionFor("/linting/rules/check")).isEqualTo(usual.linting)
+        assertThat(usual.revisionFor("/lintingx")).isNull()
+        assertThat(ProcessorIdentity({ null }, ExecutionLimits(), FormattingLimits()).linting).isNull()
+    }
+
     private val revision = Regex("^sha256-v1:[0-9a-f]{64}$").toPattern()
 
     @Test
