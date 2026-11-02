@@ -2,6 +2,7 @@ package com.jjt.ingsis.printscript.processor
 
 import com.jjt.ingsis.printscript.execution.ExecutionLimits
 import com.jjt.ingsis.printscript.formatting.FormattingLimits
+import com.jjt.ingsis.printscript.linting.LintingLimits
 import java.security.MessageDigest
 import java.util.HexFormat
 
@@ -11,15 +12,18 @@ class ProcessorIdentity(
     artifact: ProcessorArtifact,
     limits: ExecutionLimits,
     formattingLimits: FormattingLimits,
+    lintingLimits: LintingLimits = LintingLimits(),
 ) {
     val artifactDigest: String? = artifact.digest()
     val validation: String? = revision("validate", "")
     val execution: String? = revision("execute", limits.canonical())
     val formatting: String? = revision("format", formattingLimits.canonical())
+    val linting: String? = revision("lint", lintingLimits.canonical())
 
     fun revisionFor(path: String): String? =
         when {
             path == "/validate" -> validation
+            path == "/linting" || path.startsWith("/linting/") -> linting
             path == "/executions" || path.startsWith("/executions/") -> execution
             path == "/formatting" || path.startsWith("/formatting/") -> formatting
             else -> null
@@ -28,7 +32,8 @@ class ProcessorIdentity(
     fun manifest(): Map<String, Any?> =
         mapOf(
             "artifact" to artifactDigest?.let { "sha256:$it" },
-            "capabilities" to mapOf("validate" to validation, "execute" to execution, "format" to formatting),
+            "capabilities" to
+                mapOf("validate" to validation, "execute" to execution, "format" to formatting, "lint" to linting),
         )
 
     private fun revision(

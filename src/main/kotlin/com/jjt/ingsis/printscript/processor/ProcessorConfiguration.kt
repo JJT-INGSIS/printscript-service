@@ -16,7 +16,14 @@ class ProcessorConfiguration {
         artifact: ProcessorArtifact,
         limits: ExecutionLimits,
         formattingLimits: FormattingLimits,
-    ): ProcessorIdentity = ProcessorIdentity(artifact, limits, formattingLimits)
+        lintingLimits: com.jjt.ingsis.printscript.linting.LintingLimits,
+    ): ProcessorIdentity =
+        ProcessorIdentity(
+            artifact = artifact,
+            limits = limits,
+            formattingLimits = formattingLimits,
+            lintingLimits = lintingLimits,
+        )
 
     @Bean
     fun processorRevisionFilter(identity: ProcessorIdentity): FilterRegistrationBean<ProcessorRevisionFilter> =
