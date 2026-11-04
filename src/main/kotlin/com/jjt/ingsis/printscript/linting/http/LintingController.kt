@@ -38,6 +38,7 @@ class LintingController(
     ): Any =
         mapOf(
             "version" to version,
+            "defaults" to service.defaults(LanguageVersion.fromLabel(version)),
             "rules" to
                 service.catalog(LanguageVersion.fromLabel(version)).map {
                     mapOf(

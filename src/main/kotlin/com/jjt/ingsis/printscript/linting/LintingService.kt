@@ -22,6 +22,8 @@ class LintingService(
 ) {
     private val json = JsonMapper.builder().build()
 
+    fun defaults(version: LanguageVersion): Map<String, Any> = PrintScriptLintDefaults.selection(version)
+
     fun catalog(version: LanguageVersion): List<ConfigurationRule> = PrintScriptLinters.rules(version)
 
     fun check(
