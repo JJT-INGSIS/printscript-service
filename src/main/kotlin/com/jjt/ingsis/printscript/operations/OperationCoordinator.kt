@@ -95,7 +95,7 @@ class OperationCoordinator(
             else -> {
                 val state =
                     if (before.state ==
-                        OperationState.PENDING
+                        OperationState.PENDING && running == null
                     ) {
                         OperationState.CANCELLED
                     } else {

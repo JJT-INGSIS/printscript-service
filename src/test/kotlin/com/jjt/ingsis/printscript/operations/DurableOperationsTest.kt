@@ -251,6 +251,55 @@ class DurableOperationsTest {
         }
     }
 
+    @Test
+    fun `a Redis rollback to PENDING cannot announce cancellation while local CPU is still running`() {
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val input = command(OperationKind.LINT)
+        val slow =
+            mock(
+                OperationEngine::class.java,
+                org.mockito.stubbing.Answer { invocation ->
+                    when (invocation.method.name) {
+                        "revision" -> {
+                            input.processorRevision
+                        }
+
+                        "execute" -> {
+                            entered.countDown()
+                            release.await(5, TimeUnit.SECONDS)
+                            OperationOutput("LINTED")
+                        }
+
+                        else -> {
+                            null
+                        }
+                    }
+                },
+            )
+        val capacity = ProcessorCapacity(2)
+        OperationCoordinator(
+            store = store,
+            engine = slow,
+            settings = settings,
+            capacity = capacity,
+            limits = limits,
+        ).use { service ->
+            val id = UUID.randomUUID()
+            service.start(id, input)
+            service.startWorker()
+            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue()
+            val running = checkNotNull(store.find(id))
+            assertThat(store.replace(running, running.copy(state = OperationState.PENDING, owner = null))).isTrue()
+            assertThat(
+                (service.cancel(id) as OperationReply.Found).operation.state,
+            ).isEqualTo(OperationState.CANCELLING)
+            assertThat(capacity.acquire(backgroundWork = true)).isNull()
+            release.countDown()
+            assertThat(await(service, id).state).isEqualTo(OperationState.CANCELLED)
+        }
+    }
+
     private fun command(kind: OperationKind) =
         OperationCommand(
             kind = kind,
