@@ -82,6 +82,10 @@ internal object FormattingResponses {
 
     fun of(outcome: FormattingOutcome): ResponseEntity<Any> =
         when (outcome) {
+            FormattingOutcome.Cancelled -> {
+                problem(HttpStatus.CONFLICT, "operation-cancelled")
+            }
+
             is FormattingOutcome.Formatted -> {
                 ResponseEntity.ok(FormattingResponse(outcome.code, emptyList()))
             }

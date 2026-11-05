@@ -3,6 +3,8 @@ package com.jjt.ingsis.printscript.formatting
 import com.jjt.ingsis.printscript.diagnostic.Diagnostic
 
 sealed interface FormattingOutcome {
+    data object Cancelled : FormattingOutcome
+
     data class Formatted(
         val code: String,
     ) : FormattingOutcome

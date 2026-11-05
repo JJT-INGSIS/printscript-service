@@ -11,6 +11,8 @@ data class LintFinding(
 )
 
 sealed interface LintingOutcome {
+    data object Cancelled : LintingOutcome
+
     data class Analyzed(
         val diagnostics: List<LintFinding>,
     ) : LintingOutcome

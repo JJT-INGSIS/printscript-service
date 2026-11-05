@@ -55,31 +55,35 @@ class LintingService(
         version: LanguageVersion,
         code: String,
         rules: Map<String, JsonNode>,
+        keepRunning: () -> Boolean = { true },
     ): LintingOutcome {
         if (code.utf8Size() > limits.codeBytes) return LintingOutcome.CodeTooLarge
         val violations = check(version, rules)
         if (violations.isNotEmpty()) return LintingOutcome.InvalidRules(violations)
         val source = PrintScriptToolchains.forVersion(version).statements(code)
-        return collect(PrintScriptLinters.create(version, json.writeValueAsString(rules)).lint(source))
+        return collect(PrintScriptLinters.create(version, json.writeValueAsString(rules)).lint(source), keepRunning)
     }
 
-    private fun collect(initial: DiagnosticSource): LintingOutcome {
-        var source = initial
-        val findings = mutableListOf<LintFinding>()
-        while (true) {
-            when (val next = source.nextDiagnostic()) {
-                DiagnosticReadResult.EndOfInput -> {
-                    return LintingOutcome.Analyzed(findings)
-                }
+    private tailrec fun collect(
+        source: DiagnosticSource,
+        keepRunning: () -> Boolean,
+        findings: List<LintFinding> = emptyList(),
+    ): LintingOutcome {
+        if (!keepRunning()) return LintingOutcome.Cancelled
+        return when (val next = source.nextDiagnostic()) {
+            DiagnosticReadResult.EndOfInput -> {
+                LintingOutcome.Analyzed(findings)
+            }
 
-                is DiagnosticReadResult.Failure -> {
-                    return LintingOutcome.InvalidCode(next.error.toDiagnostic())
-                }
+            is DiagnosticReadResult.Failure -> {
+                LintingOutcome.InvalidCode(next.error.toDiagnostic())
+            }
 
-                is DiagnosticReadResult.Success -> {
-                    if (findings.size >= limits.diagnosticLimit) return LintingOutcome.DiagnosticsTooLarge
-                    findings.add(finding(next.diagnostic))
-                    source = next.remainingSource
+            is DiagnosticReadResult.Success -> {
+                if (findings.size >= limits.diagnosticLimit) {
+                    LintingOutcome.DiagnosticsTooLarge
+                } else {
+                    collect(next.remainingSource, keepRunning, findings + finding(next.diagnostic))
                 }
             }
         }

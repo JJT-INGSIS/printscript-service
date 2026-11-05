@@ -22,12 +22,26 @@ class FormattingService(
         version: LanguageVersion,
         code: String,
         rules: Map<String, JsonNode>,
+        keepRunning: () -> Boolean = { true },
     ): FormattingOutcome {
         val violations = check(version, rules)
         return when {
-            violations.isNotEmpty() -> FormattingOutcome.InvalidRules(violations)
-            code.utf8Size() > limits.codeBytes -> FormattingOutcome.CodeTooLarge
-            else -> formatted(version, code, configurationOf(rules))
+            violations.isNotEmpty() -> {
+                FormattingOutcome.InvalidRules(violations)
+            }
+
+            code.utf8Size() > limits.codeBytes -> {
+                FormattingOutcome.CodeTooLarge
+            }
+
+            else -> {
+                formatted(
+                    version = version,
+                    code = code,
+                    configuration = configurationOf(rules),
+                    keepRunning = keepRunning,
+                )
+            }
         }
     }
 
@@ -35,10 +49,11 @@ class FormattingService(
         version: LanguageVersion,
         code: String,
         configuration: String,
+        keepRunning: () -> Boolean,
     ): FormattingOutcome {
         val formatter = PrintScriptFormatters.create(version, configuration)
         val tokens = PrintScriptToolchains.forVersion(version).tokens(code)
-        return FormattedText(limits.outputBytes).collect(formatter.format(tokens))
+        return FormattedText(limits.outputBytes, keepRunning).collect(formatter.format(tokens))
     }
 
     private fun configurationOf(rules: Map<String, JsonNode>): String =

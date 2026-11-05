@@ -9,6 +9,7 @@ import printscript.v1.formatter.WhitespaceSizeLimitExceeded
 
 internal class FormattedText(
     private val outputBytes: Int,
+    private val keepRunning: () -> Boolean = { true },
 ) {
     fun collect(source: FormattedSource): FormattingOutcome = collect(source, StringBuilder(), 0)
 
@@ -16,8 +17,9 @@ internal class FormattedText(
         source: FormattedSource,
         text: StringBuilder,
         bytes: Long,
-    ): FormattingOutcome =
-        when (val chunk = source.nextFormattedChunk()) {
+    ): FormattingOutcome {
+        if (!keepRunning()) return FormattingOutcome.Cancelled
+        return when (val chunk = source.nextFormattedChunk()) {
             FormattedChunkReadResult.EndOfInput -> {
                 FormattingOutcome.Formatted(text.toString())
             }
@@ -35,6 +37,7 @@ internal class FormattedText(
                 }
             }
         }
+    }
 
     private fun failure(error: FormattingError): FormattingOutcome =
         when (error) {

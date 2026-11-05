@@ -22,10 +22,12 @@ repositories {
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("io.github.jjt-ingsis.printscript:printscript-v1:1.2.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+    testImplementation("org.testcontainers:testcontainers")
 }
 
 tasks.test {
