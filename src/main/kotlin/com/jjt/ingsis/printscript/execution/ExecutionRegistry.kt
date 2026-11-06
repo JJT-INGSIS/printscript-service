@@ -1,18 +1,18 @@
 package com.jjt.ingsis.printscript.execution
 
+import com.jjt.ingsis.printscript.processor.ProcessorCapacity
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
-import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 class ExecutionRegistry(
     private val limits: ExecutionLimits,
+    private val capacity: ProcessorCapacity = ProcessorCapacity(limits.activeGlobal),
     private val sizeOf: (ExecutionEvent) -> Int,
 ) : AutoCloseable {
     private val sessions = ConcurrentHashMap<UUID, ExecutionSession>()
-    private val capacity = Semaphore(limits.activeGlobal)
     private val workers = Executors.newFixedThreadPool(limits.activeGlobal)
     private val clock = Executors.newSingleThreadScheduledExecutor()
     private val closed = AtomicBoolean()
@@ -27,7 +27,8 @@ class ExecutionRegistry(
         if (command.code.utf8Size() > limits.codeBytes || command.inputs.any { it.utf8Size() > limits.inputBytes }) {
             return rejected(Rejection.INVALID, "request-too-large")
         }
-        if (closed.get() || !capacity.tryAcquire()) return rejected(Rejection.CAPACITY, "execution-capacity-exhausted")
+        if (closed.get()) return rejected(Rejection.CAPACITY, "execution-capacity-exhausted")
+        val permit = capacity.acquire() ?: return rejected(Rejection.CAPACITY, "execution-capacity-exhausted")
         val id = UUID.randomUUID()
         val session =
             ExecutionSession(id = id, command = command, limits = limits, journal = EventJournal(id, limits, sizeOf))
@@ -37,7 +38,7 @@ class ExecutionRegistry(
             try {
                 session.execute()
             } finally {
-                capacity.release()
+                permit.close()
             }
         }
         return ExecutionResult.Success(session.descriptor())

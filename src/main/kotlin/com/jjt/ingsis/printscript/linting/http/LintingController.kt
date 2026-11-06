@@ -71,6 +71,10 @@ class LintingController(
                     request.rules.withExplicitNulls(),
                 )
         ) {
+            LintingOutcome.Cancelled -> {
+                problem(HttpStatus.CONFLICT, "operation-cancelled")
+            }
+
             is LintingOutcome.Analyzed -> {
                 ResponseEntity.ok(
                     mapOf(
