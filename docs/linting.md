@@ -95,3 +95,15 @@ en runners. No se necesita la VM de dev.
 Las pruebas específicas cubren defaults frente a selección vacía, reglas activas/
 inactivas, CHOICE y null, diagnósticos Unicode, errores léxicos/sintácticos,
 límites, contrato HTTP, identidad de lint, proveedor caído, timeout y dispatch.
+
+## Defaults reales — SNI-77 (04/11/2026)
+
+Thiago aprobó ampliar GET /linting/rules con `defaults`, un mapa de selección
+explícita obtenido de defaultConfiguration() de la biblioteca publicada para
+cada versión. Se conserva `rules` y la revisión efectiva. No se activa ese mapa
+al recibir {}: el análisis sigue exigiendo una selección explícita.
+
+La adaptación codifica las reglas elegidas por la factory, sin decidir sus valores.
+LintDefaultsTest reconstruye la configuración a partir del mapa y compara sus
+reglas exactamente con las de las factories 1.0/1.1 reales. También comprueba
+validez y diferencia de comportamiento frente a {}. No se modificó la biblioteca.

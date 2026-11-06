@@ -30,6 +30,8 @@ class LintingHttpTest(
         http.get("/linting/rules?version=1.1").andExpect {
             status { isOk() }
             header { string(PROCESSOR_REVISION_HEADER, identity.linting!!) }
+            jsonPath("$.defaults.identifier_format") { value("camel case") }
+            jsonPath("$.defaults.mandatory-variable-or-literal-in-println") { value(true) }
             jsonPath("$.rules[?(@.id == 'identifier_format')].type") { value("choice") }
         }
         assertThat(identity.linting).isNotNull().isNotEqualTo(identity.formatting)
