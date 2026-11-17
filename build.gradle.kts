@@ -24,6 +24,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("tools.jackson.module:jackson-module-kotlin")
+    implementation("com.newrelic.agent.java:newrelic-api:9.5.0")
     implementation("io.github.jjt-ingsis.printscript:printscript-v1:1.2.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
