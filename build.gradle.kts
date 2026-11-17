@@ -1,5 +1,5 @@
 plugins {
-    id("jjt.spring-service") version "0.2.0"
+    id("jjt.spring-service") version "0.3.0"
 }
 
 group = "com.jjt.ingsis"
