@@ -2,7 +2,7 @@
 
 `POST /validate` responde si un código PrintScript es válido para una versión del lenguaje. No ejecuta el código, no lo guarda y no aplica reglas de linting.
 
-Usa la biblioteca publicada `io.github.jjt-ingsis.printscript:printscript-v1:1.1.0`, que valida PrintScript 1.0 y 1.1.
+Usa la biblioteca publicada `io.github.jjt-ingsis.printscript:printscript-v1:1.2.0`, que valida PrintScript 1.0 y 1.1.
 
 Los ejemplos de este documento son los tests del contrato: `ValidationContractTest` y `ValidationTechnicalFailureTest` leen este archivo, envían cada pedido y comparan la respuesta completa. Si el comportamiento cambia y el ejemplo no, el build falla.
 

@@ -16,7 +16,8 @@ FROM eclipse-temurin:21-jre AS runtime
 WORKDIR /app
 
 COPY --from=build /app/build/libs/app.jar app.jar
+COPY --from=build /app/build/newrelic /app/newrelic
 
 USER 10001:10001
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["/app/newrelic/start-service.sh", "/app/app.jar"]

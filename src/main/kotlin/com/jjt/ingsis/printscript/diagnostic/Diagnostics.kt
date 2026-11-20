@@ -15,6 +15,8 @@ fun ParseError.toDiagnostic(): Diagnostic = describe().at(span)
 
 fun SemanticError.toDiagnostic(): Diagnostic = describe().at(span)
 
+fun TokenReadError.toDiagnostic(): Diagnostic = describe().at(span)
+
 private fun ParseError.describe(): Description =
     when (this) {
         is ParseError.TokenRead -> {

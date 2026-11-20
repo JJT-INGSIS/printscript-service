@@ -1,12 +1,16 @@
 # PrintScript Service
 
-Servicio HTTP de lenguaje de Snippet Searcher. Recibe código PrintScript y lo procesa con la biblioteca publicada `printscript-v1:1.1.0`. No guarda snippets ni tiene base de datos.
+SNI-60 incorpora lint y catálogo reales: [contrato, límites y decisiones](docs/linting.md).
+
+Servicio HTTP de lenguaje de Snippet Searcher. Recibe código PrintScript y lo procesa con la biblioteca publicada `printscript-v1:1.2.0`. No guarda snippets ni tiene base de datos.
 
 ## Operaciones
 
 | Operación | Endpoint | Contrato |
 | --- | --- | --- |
 | Validar código de PrintScript 1.0 o 1.1 | `POST /validate` | [docs/validation.md](./docs/validation.md) |
+| Formatear código y consultar o validar sus reglas | `GET /formatting/rules`, `POST /formatting/rules/check`, `POST /formatting` | [docs/formatting.md](./docs/formatting.md) |
+| Consultar la identidad del procesador (interno) | `GET /processor` | [docs/processor-identity.md](./docs/processor-identity.md) |
 
 El contrato documenta el pedido, las respuestas, los errores, el alcance de la validación y el catálogo de reglas. Sus ejemplos se ejecutan como tests en cada build.
 
@@ -21,9 +25,11 @@ curl -s -X POST http://localhost:8080/validate -H "Content-Type: application/jso
 | Paquete | Responsabilidad |
 | --- | --- |
 | `validation` | El endpoint: recibe el pedido, valida y arma la respuesta. |
+| `formatting` | Formato: catálogo de reglas, validación de reglas, formateo y sus límites. |
 | `language` | Las versiones soportadas y el lexer, parser y validador de cada una. |
 | `diagnostic` | Traduce cada error de la biblioteca a regla, mensaje, línea y columna. |
 | `web` | Convierte las excepciones en respuestas de error con formato Problem Details. |
+| `processor` | Identidad del build que procesa: header `Processor-Revision` y `GET /processor`. |
 
 ## Build
 
@@ -162,18 +168,31 @@ Ver [operación y recuperación SNI-25](https://github.com/JJT-INGSIS/snippet-se
 La integración por tag, resolución de environment secrets y el recorrido real
 dev → prod quedan pendientes de la configuración y pruebas con VMs encendidas.
 
+## SNI-47 — Ejecución incremental
+
+Además de validar, el servicio expone sesiones internas de ejecución TEST e INTERACTIVE.
+Ver [API, cancelación, límites y pruebas](docs/execution.md). Estas rutas no deben
+publicarse al navegador; Snippets autoriza y Language adapta su transporte.
+
 El paquete de aplicación es distinto del artefacto Maven printscript-v1.
 PrintScript no necesita PostgreSQL; el CD no agrega una base a este servicio.
 
+## SNI-76 — Identidad del procesador
+
+Cada respuesta de validación y de ejecución trae `Processor-Revision`: la revisión
+del build exacto que la produjo, calculada con el SHA-256 del `app.jar` y la
+configuración de esa capacidad. No se deduce de la versión de lenguaje. Ver
+[contrato, cálculo y cómo verificarlo en una imagen](docs/processor-identity.md).
+
 ## SNI-43 — actualización de herramientas de CD
 
-El caller preparado usa `github-workflows@v0.6.0`. Integrar únicamente después de
-publicar y verificar esa versión central con el SHA definitivo de infra. La versión
-nueva admite el stack anterior; actualizar los tres callers del ambiente antes de
-incorporar NGINX/Asset/UI. No reejecutar versiones antiguas para operar el stack ampliado.
+El caller usa `github-workflows@v0.6.2`, con la revisión fija de infra que corrige el doble escape de healthchecks. Antes de reaplicar infraestructura o probar reconciliación, actualizar los cuatro callers del ambiente y esperar que no haya ejecuciones activas. No reejecutar herramientas antiguas sobre el stack ampliado.
 El procedimiento y la protección del registro están en
 [rollout SNI-43](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-43-cd.md).
 
-## Herramientas de CD — SNI-44
+## SNI-59 — Formato
 
-El caller usa workflows centrales `v0.6.2`, con la revisión fija de infra que corrige el doble escape de healthchecks. Este mantenimiento cambia sólo herramientas y documentación: no promueve funcionalidades nuevas de dev ni cambia la imagen en producción. Antes de reaplicar infraestructura, actualizar los cuatro callers del ambiente y esperar ejecuciones activas; no reejecutar herramientas antiguas sobre el stack ampliado.
+El servicio formatea con el formatter real de la biblioteca y publica el catálogo
+de reglas de cada versión. Desde la 1.2.0 el catálogo y la validación por regla
+vienen de la biblioteca: el servicio solo agrega las descripciones y los límites.
+Ver [API, motivos de error, límites y decisiones](docs/formatting.md).
