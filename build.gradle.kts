@@ -32,7 +32,7 @@ dependencies {
 }
 
 tasks.test {
-    inputs.dir("docs")
+    inputs.file("docs/validation.md")
 }
 
 tasks.bootJar {
