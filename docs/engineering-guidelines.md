@@ -1,171 +1,160 @@
-# Engineering Guidelines — Snippet Searcher
+# Guía de ingeniería de Snippet Searcher
 
-These instructions apply to every code change in this repository.
+Estas instrucciones se aplican a todos los cambios de código de este repositorio.
 
-The objective is not only to make the code work.
+El objetivo incluye mantener el código:
 
-The codebase must remain:
+- fácil de entender;
+- fácil de probar;
+- fácil de modificar;
+- explícito en sus responsabilidades;
+- resistente a la complejidad accidental.
 
-- easy to understand;
-- easy to test;
-- easy to modify;
-- explicit about responsibilities;
-- resistant to accidental complexity.
+Priorizá soluciones simples, legibles y fáciles de mantener.
 
-Prefer simple, readable and maintainable code over clever or over-engineered solutions.
+Antes de implementar un cambio:
 
-Before implementing a change:
+1. Entendé el caso de uso solicitado.
+2. Identificá el servicio responsable.
+3. Identificá la capa que debe encargarse de cada parte del comportamiento.
+4. Mantené la lógica de negocio independiente de HTTP, la persistencia y el framework.
+5. Preferí el diseño más pequeño que resuelva correctamente el requisito actual.
+6. Implementá historias de usuario futuras solo si se piden explícitamente.
+7. Preservá los límites de arquitectura existentes salvo que el pedido exija modificarlos.
+8. Buscá oportunidades concretas de simplificar variantes mediante patrones adecuados.
+9. Introducí abstracciones o patrones solo si hay un motivo concreto.
 
-1. Understand the requested use case.
-2. Identify which service owns the responsibility.
-3. Identify which layer owns each part of the behavior.
-4. Keep business logic independent from HTTP, persistence and framework details.
-5. Prefer the smallest design that correctly solves the current requirement.
-6. Do not implement future User Stories unless explicitly requested.
-7. Preserve existing architectural boundaries unless the task explicitly requires changing them.
-8. Look for real opportunities to simplify variation through appropriate design patterns.
-9. Do not introduce abstractions or patterns without a concrete reason.
+# 1. Responsabilidades del sistema
 
+Snippet Searcher se compone de servicios independientes.
 
-# 1. System responsibilities
-
-Snippet Searcher is composed of independent services.
-
-Respect service ownership.
-
-Do not move responsibilities between services simply because doing so is locally convenient.
-
+Respetá las responsabilidades de cada servicio. Moverlas requiere una razón que vaya más allá de la comodidad de un cambio local.
 
 ## snippets-service
 
-Owns:
+Se encarga de:
 
-- snippet use cases;
-- snippet metadata;
-- orchestration of snippet workflows;
-- the `Language` abstraction;
-- coordination with storage;
-- coordination with Permissions;
-- coordination with language-specific services.
+- los casos de uso de snippets;
+- los metadatos de los snippets;
+- la coordinación de sus flujos;
+- la abstracción `Language`;
+- la coordinación con almacenamiento;
+- la coordinación con Permissions;
+- la coordinación con servicios específicos de cada lenguaje.
 
-It does NOT own:
+Quedan fuera de su responsabilidad:
 
-- PrintScript parsing or validation implementation;
-- permissions persistence;
-- authentication;
-- Azure storage implementation.
+- la implementación del parser o del validador de PrintScript;
+- la persistencia de permisos;
+- la autenticación;
+- la implementación del almacenamiento en Azure.
 
-Example:
+Ejemplo:
 
-`snippets-service` may ask:
+`snippets-service` puede pedir:
 
-> Validate this code using language X and version Y.
+> Validá este código con el lenguaje X y la versión Y.
 
-It must NOT know how PrintScript parsing or semantic validation works internally.
-
+El funcionamiento interno del parser y de la validación semántica pertenece a PrintScript.
 
 ## permissions-service
 
-Owns:
+Se encarga de:
 
-- snippet ownership;
-- access relationships;
-- sharing;
-- permissions.
+- la titularidad de snippets;
+- las relaciones de acceso;
+- el acceso compartido;
+- los permisos.
 
-It does NOT own:
+Quedan fuera de su responsabilidad:
 
-- authentication;
-- snippet content;
-- snippet metadata;
-- PrintScript behavior.
+- la autenticación;
+- el contenido de los snippets;
+- sus metadatos;
+- el comportamiento de PrintScript.
 
-Authentication will be delegated to Auth0 when introduced by the course.
-
+Auth0 se encarga de la autenticación.
 
 ## printscript-service
 
-Owns PrintScript-specific operations such as:
+Se encarga de operaciones propias de PrintScript:
 
-- validation;
-- execution;
-- formatting;
-- linting;
-- other PrintScript-specific capabilities required by future User Stories.
+- validación;
+- ejecución;
+- formateo;
+- análisis de estilo;
+- otras capacidades de PrintScript que requieran las historias de usuario.
 
-It does NOT own:
+Quedan fuera de su responsabilidad:
 
-- snippets;
-- snippet metadata;
-- ownership;
-- permissions;
-- users.
+- los snippets;
+- sus metadatos;
+- su titularidad;
+- los permisos;
+- los usuarios.
 
+## Almacenamiento
 
-## Storage
+Usá el contrato de almacenamiento del proyecto al integrar el proveedor respaldado por Azure.
 
-The course will provide the storage interface and its Azure-backed implementation.
+Evitá:
 
-Do NOT:
+- inventar una interfaz de reemplazo;
+- integrar Azure directamente;
+- eludir la abstracción provista;
+- duplicar el contenido de los snippets como otra fuente de verdad.
 
-- invent a replacement interface;
-- implement Azure directly;
-- bypass the provided abstraction;
-- duplicate snippet content as another authoritative source.
+Integrá el contrato provisto cuando esté disponible para el caso de uso.
 
-Integrate the provided contract only when it becomes available.
+# 2. Límites de arquitectura
 
+Las responsabilidades deben ser explícitas.
 
-# 2. Architectural boundaries
-
-Responsibilities must remain explicit.
-
-Package names may follow the existing repository structure, but conceptually dependencies should look like this:
+Los nombres de paquetes pueden seguir la estructura del repositorio. La relación conceptual entre capas es:
 
 ```text
-Web / Controller
+Web / Controlador
         ↓
-Application / Use Case
+Aplicación / Caso de uso
         ↓
-Domain
+Dominio
         ↓
-Ports / capabilities
+Puertos / capacidades
         ↓
-Infrastructure adapters
+Adaptadores de infraestructura
 ```
 
-Dependencies should point toward business logic.
+Las dependencias deben apuntar hacia la lógica de negocio.
 
-Business logic must not depend on framework or infrastructure details.
+La lógica de negocio se mantiene independiente del framework y de la infraestructura.
 
-A class should belong to the layer that owns its reason to change.
+Cada clase pertenece a la capa que tiene la responsabilidad de cambiarla.
 
+# 3. Capa web y controladores
 
-# 3. Web / Controller layer
+La capa web se encarga de HTTP.
 
-The web layer owns HTTP concerns.
+Sus responsabilidades incluyen:
 
-It is responsible for:
+- rutas;
+- DTO de pedido;
+- DTO de respuesta;
+- códigos de estado HTTP;
+- encabezados HTTP;
+- serialización;
+- validación de entradas del transporte;
+- traducción de resultados de aplicación o dominio a respuestas HTTP.
 
-- routes;
-- request DTOs;
-- response DTOs;
-- HTTP status codes;
-- HTTP headers;
-- serialization;
-- transport-level input validation;
-- translating application/domain results into HTTP responses.
+Las decisiones sobre HTTP quedan fuera de servicios de aplicación, repositorios y clases de dominio.
 
-HTTP decisions must NOT live inside application services, repositories or domain classes.
-
-The important rule is:
+La regla principal es:
 
 ```text
-Application/domain decides WHAT happened.
-The web layer decides HOW that becomes HTTP.
+La aplicación o el dominio decide qué pasó.
+La capa web decide cómo representarlo mediante HTTP.
 ```
 
-For example, the application may report:
+Por ejemplo, la aplicación puede devolver:
 
 ```text
 SnippetNotFound
@@ -175,7 +164,7 @@ UnsupportedLanguage
 LanguageServiceUnavailable
 ```
 
-The web layer decides whether those become:
+La capa web decide si esos resultados se convierten en:
 
 ```text
 404
@@ -185,11 +174,11 @@ The web layer decides whether those become:
 503
 ```
 
-according to the API contract.
+según el contrato de la API.
 
-Prefer centralized HTTP error translation using Spring Web mechanisms such as `@RestControllerAdvice` when it keeps controllers simple and consistent.
+Preferí centralizar la traducción de errores HTTP con mecanismos de Spring Web como `@RestControllerAdvice` cuando simplifique y homogeneice los controladores.
 
-Example:
+Ejemplo:
 
 ```kotlin
 @RestControllerAdvice
@@ -203,7 +192,7 @@ class SnippetExceptionHandler {
 }
 ```
 
-Or map explicit application results directly:
+También podés mapear directamente los resultados explícitos de la aplicación:
 
 ```kotlin
 @PostMapping("/snippets")
@@ -226,7 +215,7 @@ fun create(
     }
 ```
 
-Application services must NOT return:
+Los servicios de aplicación deben evitar devolver estos tipos:
 
 ```kotlin
 ResponseEntity<*>
@@ -234,14 +223,13 @@ HttpStatus
 ServerResponse
 ```
 
-Application, domain and persistence code must not know whether an error eventually becomes HTTP 400, 404, 409, 422, 500 or 503.
+El código de aplicación, dominio y persistencia es independiente de si el resultado acaba como HTTP 400, 404, 409, 422, 500 o 503.
 
+# 4. Capa de aplicación y casos de uso
 
-# 4. Application / Use Case layer
+Los servicios de aplicación representan los casos de uso del sistema.
 
-Application services represent system use cases.
-
-Examples:
+Ejemplos:
 
 ```text
 CreateSnippetUseCase
@@ -250,31 +238,30 @@ RegisterSnippetOwnerUseCase
 ValidatePrintScriptUseCase
 ```
 
-They are responsible for:
+Se encargan de:
 
-- orchestrating the use case;
-- enforcing application rules;
-- coordinating collaborators;
-- deciding the order of business operations;
-- returning meaningful application/domain results.
+- orquestar el caso de uso;
+- aplicar reglas de la aplicación;
+- coordinar colaboradores;
+- decidir el orden de las operaciones de negocio;
+- devolver resultados significativos de aplicación o dominio.
 
-They must NOT contain:
+Quedan fuera de esta capa:
 
-- HTTP status codes;
-- HTTP response construction;
-- JSON serialization details;
-- JPA queries;
-- Spring MVC concerns;
-- WebClient configuration;
-- environment variable access;
-- low-level infrastructure setup.
+- códigos de estado HTTP;
+- construcción de respuestas HTTP;
+- detalles de serialización JSON;
+- consultas JPA;
+- detalles de Spring MVC;
+- configuración de WebClient;
+- acceso a variables de entorno;
+- configuración de infraestructura de bajo nivel.
 
+## Orquestación declarativa
 
-## Keep orchestration declarative
+El método principal de un caso de uso importante debería leerse como una descripción del flujo.
 
-The main method of an important use case should read almost like a description of the workflow.
-
-Prefer:
+Ejemplo que hace explícitos los pasos:
 
 ```kotlin
 fun create(command: CreateSnippetCommand): CreateSnippetResult {
@@ -293,28 +280,28 @@ fun create(command: CreateSnippetCommand): CreateSnippetResult {
 }
 ```
 
-over:
+Ejemplo que mezcla responsabilidades:
 
 ```kotlin
 fun create(command: CreateSnippetCommand): CreateSnippetResult {
-    // 100 lines containing:
-    // WebClient calls
-    // response status handling
-    // persistence mappings
-    // JSON details
-    // retries
-    // validation
-    // exception mapping
-    // ownership
-    // logging
+    // 100 líneas que mezclan:
+    // llamadas a WebClient
+    // manejo de estados HTTP
+    // conversiones de persistencia
+    // detalles de JSON
+    // reintentos
+    // validación
+    // traducción de excepciones
+    // titularidad
+    // registros
 }
 ```
 
-High-level methods should expose intent.
+Los métodos de alto nivel deben comunicar la intención.
 
-Extract steps when doing so makes the workflow easier to understand.
+Extraé pasos cuando faciliten entender el flujo.
 
-Good:
+Nombres que describen pasos concretos:
 
 ```kotlin
 validateSnippet()
@@ -325,7 +312,7 @@ checkOwnership()
 buildUpdatedSnippet()
 ```
 
-Avoid meaningless extraction:
+Evitá extraer pasos con nombres que oculten su intención:
 
 ```kotlin
 stepOne()
@@ -335,112 +322,109 @@ handle()
 executeInternal()
 ```
 
-A method name must explain its intention.
+El nombre del método debe explicar para qué existe.
 
+# 5. Capa de dominio
 
-# 5. Domain layer
+El código de dominio representa el problema y sus reglas.
 
-Domain code represents the problem and its rules.
+Preferí:
 
-Prefer:
+- objetos inmutables;
+- estados explícitos;
+- resultados de dominio explícitos;
+- funciones puras;
+- tipos que expresen conceptos del dominio;
+- comportamiento independiente de la infraestructura.
 
-- immutable objects;
-- explicit states;
-- explicit domain results;
-- pure functions;
-- meaningful domain types;
-- behavior independent from infrastructure.
-
-Domain code should not depend on:
+Mantené el dominio independiente de:
 
 - Spring;
-- controllers;
+- controladores;
 - HTTP;
 - WebClient;
 - JPA;
 - PostgreSQL;
-- environment variables;
-- infrastructure-specific APIs.
+- variables de entorno;
+- API específicas de infraestructura.
 
-Important domain logic should normally be executable in a regular unit test without starting Spring.
+La lógica de dominio importante debería poder ejecutarse en una prueba unitaria común sin iniciar Spring.
 
+# 6. Capa de persistencia
 
-# 6. Persistence layer
+La capa de persistencia se dedica a guardar y leer datos.
 
-Persistence is responsible only for persistence.
+Puede contener:
 
-It may contain:
+- entidades JPA;
+- repositorios de Spring Data;
+- adaptadores de persistencia;
+- conversiones de persistencia;
+- consultas específicas de la base.
 
-- JPA entities;
-- Spring Data repositories;
-- persistence adapters;
-- persistence mappings;
-- database-specific queries.
+Quedan fuera de esta capa las decisiones sobre:
 
-It must NOT decide:
+- respuestas HTTP;
+- códigos de estado HTTP;
+- política de autorización;
+- flujos de negocio;
+- validación de lenguajes;
+- orquestación de la aplicación.
 
-- HTTP responses;
-- HTTP status codes;
-- authorization policy;
-- business workflows;
-- language validation;
-- application orchestration.
-
-Bad:
+Ejemplo que acopla el repositorio a HTTP:
 
 ```kotlin
 fun findSnippet(id: UUID): ResponseEntity<SnippetEntity>
 ```
 
-Bad:
+Otro ejemplo de ese acoplamiento:
 
 ```kotlin
 repository.findById(id)
     ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
 ```
 
-Prefer:
+Preferí:
 
 ```kotlin
 fun findById(id: SnippetId): Snippet?
 ```
 
-or another explicit persistence/application-level result.
+u otro resultado explícito de persistencia o aplicación.
 
-The persistence layer reports what happened at the persistence boundary.
+La persistencia informa qué ocurrió al guardar o leer.
 
-The application decides what that means for the use case.
+La aplicación decide qué significa eso para el caso de uso.
 
-The web layer decides how that result is represented through HTTP.
+La capa web decide cómo representar el resultado mediante HTTP.
 
+# 7. Clientes de servicios externos
 
-# 7. External service clients
+Las integraciones HTTP remotas pertenecen a adaptadores de infraestructura o clientes explícitos.
 
-Remote HTTP integrations belong in explicit infrastructure adapters or clients.
-
-Examples:
+Ejemplos:
 
 ```text
 PrintScriptClient
 PermissionsClient
 ```
 
-They own:
+Se encargan de:
 
-- building HTTP requests;
-- serialization and deserialization;
-- remote service URLs;
-- HTTP headers;
-- HTTP-specific response handling;
-- timeout configuration;
-- translating transport failures into application-level failures.
+- construir pedidos HTTP;
+- serializar y deserializar;
+- manejar las URL de los servicios remotos;
+- manejar encabezados HTTP;
+- interpretar los detalles HTTP de la respuesta;
+- configurar tiempos de espera;
+- traducir fallos de transporte a fallos de aplicación.
 
-They must NOT own the use case.
+La coordinación del caso de uso queda en la aplicación.
 
-Example:
+Ejemplo:
 
 ```text
-printscript-service returns HTTP 503
+printscript-service devuelve HTTP 503
         ↓
 PrintScriptClient
         ↓
@@ -450,12 +434,12 @@ CreateSnippetUseCase
         ↓
 CreateSnippetResult.ServiceUnavailable
         ↓
-Controller / ControllerAdvice
+Controlador / ControllerAdvice
         ↓
-HTTP response
+Respuesta HTTP
 ```
 
-Do not leak infrastructure types such as:
+Mantené tipos de infraestructura como estos fuera del código de aplicación y dominio:
 
 ```text
 WebClient
@@ -464,14 +448,11 @@ ResponseEntity
 HttpStatus
 ```
 
-into application or domain code.
+# 8. DTO y modelos
 
+Los modelos en distintas fronteras tienen distintas responsabilidades.
 
-# 8. DTOs and models
-
-Models at different boundaries have different responsibilities.
-
-Prefer:
+Preferí:
 
 ```text
 CreateSnippetRequest
@@ -483,9 +464,9 @@ Snippet
 CreateSnippetResponse
 ```
 
-Do not expose persistence entities directly through HTTP APIs.
+Las entidades de persistencia quedan fuera de las respuestas de la API HTTP.
 
-Bad:
+Ejemplo que expone la entidad:
 
 ```kotlin
 @PostMapping
@@ -494,7 +475,7 @@ fun create(
 ): SnippetEntity
 ```
 
-Prefer:
+Preferí un DTO:
 
 ```kotlin
 data class CreateSnippetRequest(
@@ -506,42 +487,36 @@ data class CreateSnippetRequest(
 )
 ```
 
-A DTO describes an external contract.
+Un DTO describe un contrato externo.
 
-A domain/application model describes an internal concept.
+Un modelo de aplicación o dominio describe un concepto interno.
 
-A persistence entity describes storage.
+Una entidad de persistencia describe el almacenamiento.
 
-Do not duplicate model classes mechanically.
+Separá modelos cuando compartir la misma clase acople responsabilidades. Evitá duplicarlos por rutina.
 
-Separate them when sharing the same class would create coupling between responsibilities.
+# 9. Aplicar SOLID con criterio
 
+Aplicá SOLID cuando mejore el diseño y haya un problema concreto que resolver.
 
-# 9. SOLID — use it pragmatically
+## Principio de responsabilidad única
 
-Apply SOLID when it improves the design.
+Una clase debe tener un motivo claro para cambiar.
 
-Do not apply principles mechanically.
-
-
-## Single Responsibility Principle
-
-A class should have one clear reason to change.
-
-Bad:
+Ejemplo con responsabilidades mezcladas:
 
 ```text
 SnippetService
-├── parses HTTP
-├── validates PrintScript
-├── calls Permissions
-├── writes PostgreSQL
-├── accesses storage
-├── maps errors
-└── builds HTTP responses
+├── interpreta HTTP
+├── valida PrintScript
+├── llama a Permissions
+├── escribe en PostgreSQL
+├── accede al almacenamiento
+├── traduce errores
+└── construye respuestas HTTP
 ```
 
-Better:
+Ejemplo con responsabilidades delimitadas:
 
 ```text
 CreateSnippetUseCase
@@ -551,25 +526,21 @@ CreateSnippetUseCase
 └── OwnershipClient
 ```
 
-Each collaborator represents a real responsibility.
+Cada colaborador representa una responsabilidad real.
 
+## Principio abierto/cerrado
 
-## Open/Closed Principle
+Preferí diseños donde sea posible agregar variantes sin modificar reiteradamente el código central de orquestación.
 
-Prefer designs where new variants can be added without repeatedly modifying central orchestration code.
+Por ejemplo, agregar un lenguaje o una estrategia de validación debería requerir una implementación nueva, con cambios acotados, en lugar de editar varios `when` dispersos.
 
-For example, adding a new language or validation strategy should preferably involve adding a new implementation rather than editing several unrelated `when` expressions throughout the application.
+Evaluá cada caso. Si no se esperan variantes, un condicional local pequeño puede ser la opción más clara.
 
-Do not apply this mechanically.
+## Inversión de dependencias
 
-A small local conditional is better than unnecessary abstraction when variation is not expected.
+La lógica de negocio debe depender de capacidades.
 
-
-## Dependency Inversion
-
-Business logic should depend on capabilities rather than infrastructure implementations.
-
-Example:
+Ejemplo:
 
 ```kotlin
 interface LanguageValidator {
@@ -580,7 +551,7 @@ interface LanguageValidator {
 }
 ```
 
-An infrastructure implementation may be:
+Una implementación de infraestructura podría ser:
 
 ```text
 PrintScriptLanguageValidator
@@ -590,14 +561,13 @@ PrintScriptClient
 printscript-service
 ```
 
-The use case does not know about HTTP.
+Así el caso de uso queda independiente de HTTP.
 
+## Segregación de interfaces
 
-## Interface Segregation
+Dependé de la capacidad más pequeña que necesite quien la consume.
 
-Depend on the smallest capability required by the consumer.
-
-Do not create:
+Una interfaz amplia como esta sobra si el consumidor solo valida:
 
 ```kotlin
 interface LanguageService {
@@ -610,85 +580,76 @@ interface LanguageService {
 }
 ```
 
-when a consumer only requires validation.
-
-Prefer:
+Preferí:
 
 ```kotlin
 interface LanguageValidator
 ```
 
-and introduce additional capabilities when they are actually required.
+Agregá otras capacidades a medida que se necesiten.
 
+## Evitar el exceso de abstracción
 
-## Do not over-engineer SOLID
+Evitá:
 
-Do NOT:
+- crear una interfaz por clase;
+- crear fábricas sin un problema real de construcción;
+- introducir patrones solo porque existen;
+- crear frameworks genéricos para necesidades hipotéticas;
+- abstraer código antes de que exista una variación real;
+- implementar arquitectura para historias de usuario que no se pidieron.
 
-- create an interface for every class;
-- create factories without a real construction problem;
-- introduce design patterns because they exist;
-- create generic frameworks for hypothetical future requirements;
-- abstract code before real variation exists;
-- implement architecture for future User Stories that are not currently requested.
+Preferí código concreto y simple hasta que una frontera o una variación real justifique la abstracción.
 
-Prefer simple concrete code until a real architectural boundary or variation justifies abstraction.
+# 10. Patrones de diseño para variaciones reales
 
+Buscá oportunidades de usar patrones conocidos cuando faciliten extender, entender o probar el código, y cuando el problema encaje con el patrón.
 
-# 10. Use design patterns when they simplify real variation
+En proyectos anteriores del equipo fueron útiles:
 
-Actively look for opportunities to use well-known design patterns when they make the code easier to extend, understand or test.
+- Estrategia (Strategy);
+- Despachador (Dispatcher);
+- Compuesto (Composite);
+- Estrategia y Despachador;
+- Estrategia y Compuesto.
 
-Patterns are encouraged when the problem naturally fits them.
+Podés usar otros patrones si encajan claramente. Conservá el código simple cuando sea la solución más clara.
 
-Patterns that have been especially useful in this team's previous projects include:
-
-- Strategy;
-- Dispatcher;
-- Composite;
-- Strategy + Dispatcher;
-- Strategy + Composite.
-
-Other patterns may be used when they clearly fit the problem.
-
-Do NOT force a pattern into a problem that can be solved more clearly with simple code.
-
-The goal is:
+El objetivo es:
 
 ```text
-real variation or composition
+variación o composición real
         ↓
-recognizable structure
+estructura reconocible
         ↓
-small interchangeable components
+componentes pequeños e intercambiables
 ```
 
-not:
+La siguiente situación indica que el patrón agrega complejidad:
 
 ```text
-simple problem
+problema simple
         ↓
-unnecessary pattern
+patrón innecesario
         ↓
-extra classes and indirection
+más clases e indirección
 ```
 
+## Estrategia
 
-## Strategy
+Usá Estrategia cuando varios comportamientos intercambiables implementen una misma capacidad.
 
-Use Strategy when multiple interchangeable behaviors implement the same capability.
+Algunos candidatos:
 
-Good candidates include:
+- comportamiento que varía por lenguaje;
+- comportamiento que varía por versión;
+- reglas de validación;
+- reglas de formateo;
+- reglas de análisis de estilo;
+- políticas;
+- algoritmos con varias implementaciones.
 
-- behavior that varies by language;
-- behavior that varies by language version;
-- validation rules;
-- formatting rules;
-- linting rules;
-- policies;
-- algorithms that may have multiple implementations.
-
-Example:
+Ejemplo:
 
 ```kotlin
 interface LanguageValidator {
@@ -702,7 +663,7 @@ interface LanguageValidator {
 }
 ```
 
-Possible implementations:
+Posibles implementaciones:
 
 ```text
 PrintScriptV1Validator
@@ -710,7 +671,7 @@ PrintScriptV11Validator
 FutureLanguageValidator
 ```
 
-This may be preferable to growing conditionals such as:
+Este enfoque ayuda a evitar condicionales que crecen y se repiten en la aplicación, como:
 
 ```kotlin
 when (language) {
@@ -721,16 +682,13 @@ when (language) {
 }
 ```
 
-spread throughout the application.
+Cada estrategia encapsula su variación.
 
-Variation should be encapsulated in the strategies.
+## Despachador
 
+Usá un Despachador cuando existan varias estrategias o manejadores y un componente deba elegir la implementación adecuada.
 
-## Dispatcher
-
-Use a Dispatcher when several strategies or handlers exist and a single component should select the appropriate implementation.
-
-Example:
+Ejemplo:
 
 ```kotlin
 class LanguageValidatorDispatcher(
@@ -752,19 +710,19 @@ class LanguageValidatorDispatcher(
 }
 ```
 
-The caller should not need to know which concrete strategy handles the request.
+El consumidor puede trabajar sin conocer qué estrategia concreta atiende el pedido.
 
-Prefer:
+Llamada con selección encapsulada:
 
 ```text
 CreateSnippetUseCase
         ↓
 LanguageValidatorDispatcher
         ↓
-appropriate LanguageValidator
+LanguageValidator apropiado
 ```
 
-instead of:
+Ejemplo de selección dispersa:
 
 ```text
 CreateSnippetUseCase
@@ -774,47 +732,45 @@ else if version == ...
 else if ...
 ```
 
-A Dispatcher should mainly:
+El Despachador se encarga principalmente de:
 
-1. identify the appropriate implementation;
-2. delegate the operation.
+1. identificar la implementación adecuada;
+2. delegar la operación.
 
-It should NOT absorb the business logic implemented by the strategies.
+La lógica de negocio de cada implementación sigue en la estrategia.
 
+## Estrategia y Despachador
 
-## Strategy + Dispatcher
+Usá esta combinación cuando:
 
-Strategy + Dispatcher is encouraged when:
+1. varias implementaciones compartan una capacidad;
+2. haya que elegir una según la entrada;
+3. convenga que quienes la invocan sean independientes de cada implementación concreta.
 
-1. several implementations share the same capability;
-2. one implementation must be selected based on input;
-3. callers should remain independent from concrete implementations.
-
-Conceptually:
-
-```text
-                  ┌── Strategy A
-Caller → Dispatcher ── Strategy B
-                  └── Strategy C
-```
-
-Typical variation axes include:
+Conceptualmente:
 
 ```text
-Language
-Version
-Rule type
-Operation type
+                    ┌── Estrategia A
+Consumidor → Despachador ── Estrategia B
+                    └── Estrategia C
 ```
 
-This combination helps keep callers declarative while keeping individual variations small and independently testable.
+Variaciones habituales:
 
+```text
+Lenguaje
+Versión
+Tipo de regla
+Tipo de operación
+```
 
-## Composite
+La combinación permite llamadas declarativas y deja cada variante pequeña y comprobable por separado.
 
-Use Composite when multiple components implementing the same abstraction must be treated as a single component.
+## Compuesto
 
-Example:
+Usá Compuesto cuando haya que tratar como un solo componente a varios que implementan la misma abstracción.
+
+Ejemplo:
 
 ```kotlin
 interface ValidationRule {
@@ -822,7 +778,7 @@ interface ValidationRule {
 }
 ```
 
-Individual rules:
+Reglas individuales:
 
 ```text
 SyntaxRule
@@ -830,7 +786,7 @@ VariableDeclarationRule
 TypeCompatibilityRule
 ```
 
-Composite:
+Compuesto:
 
 ```kotlin
 class CompositeValidationRule(
@@ -844,99 +800,94 @@ class CompositeValidationRule(
 }
 ```
 
-The caller sees:
+El consumidor invoca:
 
 ```text
 ValidationRule
 ```
 
-instead of needing to know how many rules exist internally.
+y puede trabajar sin conocer cuántas reglas hay internamente.
 
+## Estrategia y Compuesto
 
-## Strategy + Composite
+Usá esta combinación cuando varios comportamientos independientes:
 
-Strategy + Composite is encouraged when several independent behaviors:
+- implementen la misma abstracción;
+- puedan agregarse o quitarse por separado;
+- deban participar todos en la operación.
 
-- implement the same abstraction;
-- may be added or removed independently;
-- must all participate in the operation.
-
-Conceptually:
-
-```text
-                 ┌── Strategy A
-Caller → Composite ├── Strategy B
-                 └── Strategy C
-```
-
-Typical examples include:
-
-- formatter rules;
-- linter rules;
-- validators;
-- policies;
-- transformations.
-
-This allows new behavior to be added without turning important workflows into long sequences of conditionals.
-
-
-## Dispatcher vs Composite
-
-Use them for different problems.
-
-Dispatcher:
+Conceptualmente:
 
 ```text
-many implementations exist
-        ↓
-choose ONE
+                   ┌── Estrategia A
+Consumidor → Compuesto ├── Estrategia B
+                   └── Estrategia C
 ```
 
-Composite:
+Ejemplos habituales:
+
+- reglas de formateo;
+- reglas de análisis de estilo;
+- validadores;
+- políticas;
+- transformaciones.
+
+Así podés agregar comportamientos sin convertir flujos importantes en secuencias largas de condicionales.
+
+## Cuándo usar Despachador o Compuesto
+
+Cada uno resuelve un problema distinto.
+
+Despachador:
 
 ```text
-many implementations exist
+hay varias implementaciones
         ↓
-apply MANY as if they were one
+elegir UNA
 ```
 
-Example:
+Compuesto:
 
 ```text
-Language validators
+hay varias implementaciones
         ↓
-Dispatcher
-        ↓
-choose the validator for the requested language/version
+aplicar VARIAS como si fueran una
 ```
 
-Example:
+Ejemplo de selección:
 
 ```text
-Lint rules
+Validadores de lenguajes
         ↓
-Composite
+Despachador
         ↓
-execute all applicable rules
+elegir el validador del lenguaje y versión solicitados
 ```
 
-They may also be combined when the problem requires both selection and composition.
+Ejemplo de composición:
 
+```text
+Reglas de análisis de estilo
+        ↓
+Compuesto
+        ↓
+ejecutar todas las reglas aplicables
+```
 
-## Prefer polymorphism over growing conditionals
+Pueden combinarse cuando el problema exige selección y composición.
 
-A conditional is not automatically bad.
+## Polimorfismo cuando crecen los condicionales
 
-Simple local branching is often clearer than introducing several classes.
+Un condicional local simple suele ser más claro que introducir varias clases.
 
-However, reconsider the design when conditionals:
+Revisá el diseño cuando los condicionales:
 
-- select behavior based on a type;
-- appear in multiple places;
-- keep growing when new variants are added;
-- require modifying central classes every time a variant appears.
+- seleccionen el comportamiento según el tipo;
+- aparezcan en varios lugares;
+- crezcan al agregar variantes;
+- obliguen a modificar clases centrales por cada variante.
 
-Repeated structures such as:
+Las estructuras repetidas como esta:
 
 ```kotlin
 when (type) {
@@ -947,16 +898,15 @@ when (type) {
 }
 ```
 
-may indicate that behavior should be represented by strategies and a dispatcher.
+pueden indicar que conviene usar estrategias y un despachador.
 
-Do not replace a small one-time `when` with a pattern unless real variation exists.
+Conservá un `when` pequeño de uso puntual mientras no haya variación real.
 
+## Patrones para proteger el código importante
 
-## Patterns should protect important code
+Un patrón puede mantener simple el código de negocio que cambia con frecuencia.
 
-One of the main reasons to introduce a pattern is to keep frequently changing business code simple.
-
-Prefer:
+Preferí una llamada como:
 
 ```text
 CreateSnippetUseCase
@@ -964,7 +914,7 @@ CreateSnippetUseCase
 validateSnippet(...)
 ```
 
-while internally:
+con la selección encapsulada:
 
 ```text
 LanguageValidatorDispatcher
@@ -972,48 +922,42 @@ LanguageValidatorDispatcher
 PrintScriptValidator
 ```
 
-The use case remains simple even if languages or versions are added later.
+El caso de uso conserva su claridad aunque se agreguen lenguajes o versiones.
 
-Patterns should move variation away from important workflows rather than adding complexity to them.
+Encapsulá la variación fuera de los flujos importantes cuando eso reduzca la complejidad del caso de uso.
 
+## Criterios antes de introducir un patrón
 
-## Patterns are not goals
+Introducí un patrón para resolver un problema de diseño concreto. Antes de usarlo, comprobá:
 
-Never introduce a pattern only to demonstrate knowledge of design patterns.
+1. ¿Qué variación o composición real representa?
+2. ¿Elimina decisiones duplicadas o condicionales que crecen?
+3. ¿Hay más de una implementación significativa o es razonable que la haya?
+4. ¿Facilita entender a quien lo llama?
+5. ¿Permite probar los componentes de manera más independiente?
+6. ¿Es más simple que la alternativa?
 
-Before introducing one, verify:
+Si la mayoría de las respuestas son negativas, elegí la implementación más simple.
 
-1. What real variation or composition does it represent?
-2. Does it remove duplicated decision logic or growing conditionals?
-3. Does more than one meaningful implementation exist or realistically need to exist?
-4. Does it make the caller easier to understand?
-5. Can the resulting components be tested more independently?
-6. Is the result simpler than the alternative?
+# 11. Inmutabilidad por defecto
 
-If these answers are mostly no, prefer the simpler implementation.
+Preferí datos inmutables.
 
-
-# 11. Immutability by default
-
-Prefer immutable data.
-
-In Kotlin prefer:
+En Kotlin, preferí:
 
 ```kotlin
 val
 ```
 
-over:
+El siguiente ejemplo usa estado mutable:
 
 ```kotlin
 var
 ```
 
-Prefer immutable collections.
+Preferí colecciones inmutables y evitá compartir estado mutable.
 
-Avoid mutable shared state.
-
-Bad:
+Ejemplo que modifica estado:
 
 ```kotlin
 snippet.name = command.name
@@ -1021,7 +965,7 @@ snippet.language = command.language
 snippet.version = command.version
 ```
 
-Prefer constructing a new state explicitly:
+Preferí construir el estado siguiente explícitamente:
 
 ```kotlin
 val updatedSnippet =
@@ -1032,27 +976,26 @@ val updatedSnippet =
     )
 ```
 
-Mutable state is acceptable when it is:
+El estado mutable es aceptable si es:
 
 - local;
-- controlled;
-- not shared;
-- materially simpler than the immutable alternative.
+- controlado;
+- de uso exclusivo;
+- considerablemente más simple que su equivalente inmutable.
 
-Never use mutable in-memory state as durable application storage.
+Usá persistencia durable para el estado que debe sobrevivir reinicios.
 
+# 12. Funciones puras
 
-# 12. Prefer pure functions
+Usá funciones puras cuando sea práctico para:
 
-Use pure functions whenever practical for:
+- conversiones;
+- validación;
+- transformaciones;
+- cálculos;
+- reglas de dominio.
 
-- mapping;
-- validation;
-- transformations;
-- calculations;
-- domain rules.
-
-Example:
+Ejemplo:
 
 ```kotlin
 fun ValidationResponse.toDomain(): ValidationResult =
@@ -1062,154 +1005,146 @@ fun ValidationResponse.toDomain(): ValidationResult =
     )
 ```
 
-A pure function:
+Una función pura:
 
-- depends only on its arguments;
-- returns a result;
-- does not mutate external state;
-- does not access the database;
-- does not make HTTP requests;
-- does not read environment variables.
+- depende solo de sus argumentos;
+- devuelve un resultado;
+- deja intacto el estado externo;
+- opera sin acceso a la base de datos;
+- opera sin pedidos HTTP;
+- opera sin consultar variables de entorno.
 
-Prefer a functional core and explicit side-effect boundaries.
+Preferí un núcleo funcional con fronteras explícitas para los efectos.
 
-Conceptually:
+Conceptualmente:
 
 ```text
-Pure / business logic
+Lógica de negocio pura
         ↓
-explicit ports
+puertos explícitos
         ↓
-side effects
-    ├── HTTP
-    ├── DB
-    ├── storage
-    └── logging
+efectos secundarios
+├── HTTP
+├── base de datos
+├── almacenamiento
+└── registros
 ```
 
+# 13. Mantener simple el código importante
 
-# 13. Keep important code simple
+El código que más cambia y contiene las decisiones de negocio importantes debería ser el más fácil de leer del repositorio.
 
-The code that changes most often and contains important business decisions should be the easiest code in the repository to read.
+Priorizá la legibilidad de:
 
-Prioritize readability in:
+- casos de uso;
+- reglas de dominio;
+- políticas;
+- flujos;
+- lógica de validación.
 
-- use cases;
-- domain rules;
-- policies;
-- workflows;
-- validation logic.
+Las clases importantes deben ser:
 
-Important classes should remain:
+- pequeñas;
+- explícitas;
+- enfocadas;
+- fáciles de leer de arriba abajo;
+- fáciles de probar;
+- fáciles de modificar.
 
-- small;
-- explicit;
-- focused;
-- easy to read from top to bottom;
-- easy to test;
-- easy to modify.
+Quien abra una clase de caso de uso debería entender el flujo principal sin estudiar primero Spring, HTTP, PostgreSQL o los detalles de un SDK externo.
 
-A developer should be able to open an important use-case class and understand the main workflow without first understanding Spring, HTTP, PostgreSQL or external SDK details.
+Encapsulá la complejidad técnica en componentes explícitos de infraestructura.
 
-Move incidental complexity toward explicit infrastructure components.
+Algunos ejemplos:
 
-Examples of incidental complexity:
+- configuración de Spring;
+- configuración de WebClient;
+- serialización HTTP;
+- conversiones de JPA;
+- configuración de PostgreSQL;
+- integración con Azure;
+- reintentos;
+- configuración de tiempos de espera;
+- conversión de variables de entorno;
+- detalles de Docker;
+- adaptadores de frameworks.
 
-- Spring configuration;
-- WebClient setup;
-- HTTP serialization;
-- JPA mappings;
-- PostgreSQL configuration;
-- Azure integration;
-- retries;
-- timeout configuration;
-- environment variable mapping;
-- Docker-specific details;
-- framework adapters.
-
-The goal is:
+El objetivo es:
 
 ```text
-Frequently changing business code
-→ small, explicit and easy to modify
+Código de negocio que cambia con frecuencia
+→ pequeño, explícito y fácil de modificar
 
-Stable infrastructure details
-→ isolated behind clear boundaries
+Detalles estables de infraestructura
+→ aislados tras límites claros
 ```
 
+# 14. Organizar el código para facilitar cambios
 
-# 14. Optimize the codebase for change
+Organizá el código según las responsabilidades y motivos de cambio.
 
-Organize code according to responsibilities and reasons to change.
-
-Pay special attention to the distinction between:
+Prestá atención a estas dos categorías:
 
 ```text
-code that changes frequently
+código que cambia con frecuencia
 ```
-
-and:
 
 ```text
-technical details that change for different reasons or change rarely
+detalles técnicos que cambian por otros motivos o con poca frecuencia
 ```
 
-Frequently changing business code must be protected from infrastructure complexity.
+Mantené el código de negocio que cambia con frecuencia aislado de la complejidad de infraestructura.
 
-Examples of frequently changing code:
+Ejemplos de código que cambia con frecuencia:
 
-- use-case orchestration;
-- business policies;
-- domain validation;
-- authorization rules;
-- workflow decisions.
+- orquestación de casos de uso;
+- políticas de negocio;
+- validación de dominio;
+- reglas de autorización;
+- decisiones del flujo.
 
-Keep this code:
+Mantenelo:
 
-- small;
-- readable;
-- explicit;
-- independently testable;
-- minimally coupled to infrastructure.
+- pequeño;
+- legible;
+- explícito;
+- comprobable por separado;
+- con poco acoplamiento a infraestructura.
 
+## Aislar los detalles técnicos estables
 
-## Isolate stable technical details
+Ubicá los detalles técnicos estables o secundarios en las fronteras de infraestructura y agrupá según su responsabilidad.
 
-Stable or incidental technical details should be pushed toward infrastructure boundaries and grouped by their actual responsibility.
-
-Examples:
+Ejemplos:
 
 ```text
-HTTP client configuration
-serialization
-database mappings
-framework configuration
-environment variable mapping
-retry configuration
-timeout configuration
-storage SDK integration
+configuración del cliente HTTP
+serialización
+conversiones de base de datos
+configuración del framework
+conversión de variables de entorno
+configuración de reintentos
+configuración de tiempos de espera
+integración con el SDK de almacenamiento
 ```
 
-A change in:
+Un cambio de este tipo:
 
 ```text
 PostgreSQL
 WebClient
-JSON serialization
-Azure storage
-environment configuration
+serialización JSON
+almacenamiento en Azure
+configuración del ambiente
 ```
 
-should affect as little business code as possible.
+debería afectar la menor cantidad posible de código de negocio.
 
-Likewise, changing a business rule should not require modifying infrastructure code unless the external contract itself changed.
+Del mismo modo, cambiar una regla de negocio debería dejar intacta la infraestructura mientras se conserve el contrato externo.
 
+## Evitar agrupaciones genéricas
 
-## Do not create junk drawers
-
-"Group stable code" does NOT mean putting unrelated things together.
-
-Do NOT create generic containers such as:
+Agrupá código estable por responsabilidad. Evitá contenedores genéricos como:
 
 ```text
 Utils
@@ -1220,9 +1155,9 @@ SharedManager
 GeneralService
 ```
 
-Stable code must still be grouped according to responsibility.
+Cada grupo debe conservar una responsabilidad reconocible.
 
-Good:
+Ejemplo de organización por responsabilidad:
 
 ```text
 infrastructure/
@@ -1232,7 +1167,7 @@ infrastructure/
 └── config/
 ```
 
-Bad:
+Ejemplo de agrupación genérica:
 
 ```text
 common/
@@ -1242,18 +1177,13 @@ common/
 └── CommonService
 ```
 
-The objective is not to hide complexity.
+Ubicá cada tipo de complejidad en el componente responsable.
 
-The objective is to put each kind of complexity in the place that owns it.
+# 15. Nombres
 
+Los nombres deben comunicar la intención. Preferí nombres específicos.
 
-# 15. Naming
-
-Names must communicate intent.
-
-Prefer specific names.
-
-Good class names:
+Nombres claros de clases:
 
 ```text
 CreateSnippetUseCase
@@ -1264,7 +1194,7 @@ ValidationDiagnostic
 SnippetContentStorage
 ```
 
-Avoid vague names:
+Evitá nombres vagos como estos:
 
 ```text
 Manager
@@ -1276,12 +1206,11 @@ GeneralHandler
 ThingService
 ```
 
-unless that term genuinely represents a domain concept.
+salvo que el término represente un concepto real del dominio.
 
+## Nombres de funciones
 
-## Function names
-
-Good:
+Nombres que describen una acción concreta:
 
 ```kotlin
 validateSnippet()
@@ -1293,7 +1222,7 @@ checkOwnership()
 buildUpdatedSnippet()
 ```
 
-Avoid:
+Nombres vagos:
 
 ```kotlin
 process()
@@ -1304,7 +1233,7 @@ executeAction()
 runInternal()
 ```
 
-Boolean names should read naturally:
+Los nombres booleanos deberían leerse naturalmente:
 
 ```kotlin
 isValid
@@ -1313,49 +1242,43 @@ isOwner
 canUpdate
 ```
 
+# 16. Comentarios y documentación
 
-# 16. Comments and documentation
+Preferí código que se explique con sus nombres y su estructura.
 
-Prefer code that explains itself through naming and structure.
+Reservá los comentarios para explicar el motivo de una decisión. Omití comentarios sobre acciones que el código ya hace evidentes.
 
-Comments should explain WHY.
-
-Do not comment obvious behavior.
-
-Bad:
+Ejemplo redundante:
 
 ```kotlin
-// Validate snippet
+// Validar snippet
 validateSnippet()
 ```
 
-Useful:
+Ejemplo útil:
 
 ```kotlin
-// Register ownership only after content and metadata are available.
-// Otherwise Permissions could expose a snippet that cannot be retrieved.
+// Registrar al dueño después de que el contenido y los metadatos estén disponibles.
+// Así Permissions evita exponer un snippet cuyo contenido todavía es inaccesible.
 registerOwner(...)
 ```
 
-Document decisions that cannot be reconstructed from the code.
+Documentá decisiones que no se puedan reconstruir desde el código.
 
-Examples:
+Por ejemplo:
 
-- why a particular operation order exists;
-- why an interface exists;
-- why a retry strategy exists;
-- why a limitation was intentionally accepted.
+- por qué importa el orden de una operación;
+- por qué existe una interfaz;
+- qué justifica una estrategia de reintentos;
+- por qué se aceptó una limitación.
 
-Keep relevant technical documentation close to the code and versioned with the repository.
+Versioná la documentación técnica relevante junto con el código. Evitá duplicar lo que ya se entiende al leerlo.
 
-Do not create documentation that merely duplicates what can be understood directly from the code.
+# 17. Manejo de errores
 
+Representá explícitamente los fallos esperados de la aplicación.
 
-# 17. Error handling
-
-Expected application failures should be represented explicitly.
-
-Examples:
+Ejemplos:
 
 ```text
 SnippetNotFound
@@ -1367,40 +1290,39 @@ LanguageServiceUnavailable
 StorageUnavailable
 ```
 
-Do not use generic exceptions for normal expected business flow when an explicit result communicates the case better.
+Preferí un resultado explícito para un caso esperado de negocio cuando lo exprese mejor que una excepción genérica.
 
-Do not catch every exception and silently convert it into a generic failure.
+Evitá capturar todas las excepciones y convertirlas silenciosamente en un fallo genérico.
 
-Preserve useful information while translating errors across boundaries.
+Conservá la información útil al traducir errores entre fronteras.
 
-Example:
+Ejemplo:
 
 ```text
-PrintScript diagnostic
-rule + line + column
+Diagnóstico de PrintScript
+regla + línea + columna
         ↓
-Language boundary
+frontera de Language
         ↓
 CreateSnippetResult.InvalidCode
         ↓
-Web layer
+capa web
         ↓
-HTTP error response
+respuesta de error HTTP
 ```
 
-Do not discard diagnostics unnecessarily.
+Conservá los diagnósticos siempre que aporten información.
 
+## Los errores HTTP pertenecen a la capa web
 
-## HTTP errors belong to the web boundary
+Dejá la construcción y el lanzamiento de errores específicos de HTTP en la capa web. Las siguientes capas deben quedar independientes:
 
-Never throw or construct HTTP-specific errors from:
+- clases de dominio;
+- servicios de aplicación;
+- repositorios;
+- adaptadores de persistencia.
 
-- domain classes;
-- application services;
-- repositories;
-- persistence adapters.
-
-Bad:
+Ejemplo incorrecto dentro de un repositorio o caso de uso:
 
 ```kotlin
 throw ResponseStatusException(
@@ -1409,22 +1331,17 @@ throw ResponseStatusException(
 )
 ```
 
-inside a repository or use case.
-
-Prefer an application/domain concept such as:
+Representá el resultado con un concepto de aplicación o dominio:
 
 ```text
 SnippetNotFound
 ```
 
-and translate it to HTTP at the web boundary.
+y traducilo en la capa web.
 
+## Traducción de errores de persistencia
 
-## Persistence errors are not HTTP errors
-
-A database operation may report a persistence failure.
-
-It must not decide that the failure means:
+Una operación de base de datos puede informar un fallo de persistencia. La traducción a una respuesta como esta se hace en capas superiores:
 
 ```text
 500 Internal Server Error
@@ -1432,12 +1349,9 @@ It must not decide that the failure means:
 409 Conflict
 ```
 
-That interpretation belongs to higher boundaries.
+## Traducción de errores HTTP remotos
 
-
-## Remote HTTP errors must not leak through the application
-
-An external HTTP client may receive:
+Un cliente HTTP externo puede recibir:
 
 ```text
 404
@@ -1446,42 +1360,41 @@ An external HTTP client may receive:
 503
 ```
 
-The HTTP adapter/client should translate transport details into a meaningful application-level failure.
+El cliente o adaptador traduce el detalle del transporte a un fallo de aplicación con significado.
 
-Example:
+Ejemplo:
 
 ```text
-HTTP 503 from PrintScript
+HTTP 503 de PrintScript
         ↓
 PrintScriptClient
         ↓
 LanguageServiceUnavailable
 ```
 
-The rest of the application should not need to understand the remote service's HTTP implementation.
+El resto de la aplicación puede manejar ese resultado sin conocer la implementación HTTP del proveedor.
 
+# 18. Configuración
 
-# 18. Configuration
+Cargá desde fuera de la aplicación la configuración que varía entre ambientes.
 
-Configuration that changes between environments must come from outside the application.
+Por ejemplo:
 
-Examples:
+- URL de servicios;
+- URL de bases de datos;
+- credenciales;
+- puertos;
+- tiempos de espera;
+- indicadores de activación;
+- destinos de almacenamiento.
 
-- service URLs;
-- database URLs;
-- credentials;
-- ports;
-- timeouts;
-- feature flags;
-- storage endpoints.
-
-Bad:
+Ejemplo con configuración fija:
 
 ```kotlin
 val permissionsUrl = "http://localhost:8081"
 ```
 
-Prefer external configuration:
+Preferí configuración externa:
 
 ```kotlin
 @ConfigurationProperties("services.permissions")
@@ -1490,254 +1403,221 @@ data class PermissionsProperties(
 )
 ```
 
-The same application artifact should be able to run in different environments by changing configuration rather than source code.
+El mismo artefacto debe poder funcionar en distintos ambientes cambiando su configuración.
 
+# 19. Secretos
 
-# 19. Secrets
+Mantené fuera de Git:
 
-Never commit:
+- contraseñas;
+- tokens de acceso personales;
+- claves de API;
+- credenciales privadas.
 
-- passwords;
-- personal access tokens;
-- API keys;
-- private credentials.
+Excluí secretos de:
 
-Do not store secrets in:
-
-- source code;
-- committed `.env` files;
-- committed YAML configuration containing real credentials;
+- código fuente;
+- archivos `.env` versionados;
+- YAML versionados con credenciales reales;
 - Dockerfiles;
-- test fixtures.
+- datos de prueba.
 
-Use environment variables or platform secret mechanisms.
+Usá variables de entorno o el mecanismo de secretos de la plataforma.
 
+# 20. Registros
 
-# 20. Logging
+Escribí los registros de aplicación a stdout/stderr. Creá archivos de registro administrados por la aplicación solo si se exige explícitamente.
 
-Application logs should be written to stdout/stderr.
+Incluí contexto operativo útil y excluí:
 
-Do not create application-managed local log files unless explicitly required.
+- contraseñas;
+- tokens de acceso;
+- secretos;
+- credenciales privadas;
+- información sensible de autenticación.
 
-Logs should provide useful operational context.
+# 21. Dependencias
 
-Never log:
+Hacé que las dependencias sean explícitas y reproducibles.
 
-- passwords;
-- access tokens;
-- secrets;
-- private credentials;
-- sensitive authentication information.
+- Declaralas en Gradle.
+- Preferí versiones fijas.
+- Evitá depender de software instalado manualmente en la máquina de un integrante.
+- Reutilizá la biblioteca estándar o una dependencia existente si resuelven el problema.
+- Mantené fuera del cambio las actualizaciones de dependencias ajenas al ticket.
 
+Cada dependencia aumenta el costo de mantenimiento y el riesgo de la cadena de suministro.
 
-# 21. Dependencies
+# 22. Pruebas
 
-Dependencies must be explicit and reproducible.
+Las pruebas protegen el comportamiento y reducen el riesgo de futuros cambios.
 
-- Declare required dependencies in Gradle.
-- Prefer fixed versions.
-- Do not rely on software being manually installed on a developer machine.
-- Do not add a dependency if the standard library or an existing project dependency solves the problem adequately.
-- Do not update unrelated dependencies while implementing a ticket.
+## Pruebas unitarias
 
-Every dependency increases maintenance and supply-chain risk.
+Preferí pruebas unitarias para:
 
+- reglas de dominio;
+- funciones puras;
+- conversiones;
+- validación;
+- comportamiento de la aplicación sin infraestructura real.
 
-# 22. Tests
+Una prueba unitaria normalmente puede ejecutarse sin:
 
-Tests exist to protect behavior and make future changes safer.
-
-
-## Unit tests
-
-Prefer unit tests for:
-
-- domain rules;
-- pure functions;
-- mappings;
-- validation;
-- application behavior without real infrastructure.
-
-A unit test should normally not require:
-
-- network access;
+- acceso a la red;
 - PostgreSQL;
 - Docker;
-- a full Spring application startup.
+- iniciar toda la aplicación Spring.
 
+## Pruebas de integración
 
-## Integration tests
-
-Use integration tests for real boundaries such as:
+Usá pruebas de integración para fronteras reales como:
 
 - PostgreSQL;
-- HTTP clients;
-- serialization;
-- Spring wiring;
-- persistence adapters;
-- integrations between infrastructure components.
+- clientes HTTP;
+- serialización;
+- configuración de componentes Spring;
+- adaptadores de persistencia;
+- integración entre componentes de infraestructura.
 
+## Probar el comportamiento observable
 
-## Test behavior, not implementation
-
-Prefer:
-
-```text
-invalid PrintScript is rejected with its diagnostic information
-```
-
-over:
+Ejemplo de una afirmación sobre el resultado:
 
 ```text
-validate() was called exactly once
+el código PrintScript inválido se rechaza y se conservan sus diagnósticos
 ```
 
-Avoid tests that fail only because a private implementation detail was refactored.
+Ejemplo que depende de la implementación:
 
+```text
+se llamó exactamente una vez a validate()
+```
 
-## Design for testability
+Evitá pruebas que fallen solo porque se refactorizó un detalle privado.
 
-If important business logic requires extensive mocking to test, reconsider the design.
+## Diseñar para facilitar las pruebas
 
-Common causes are:
+Si para probar lógica de negocio importante necesitás muchos reemplazos simulados, revisá el diseño.
 
-- hidden dependencies;
-- too many responsibilities;
-- shared mutable state;
-- infrastructure mixed with business logic;
-- global state.
+Entre las causas habituales están:
 
-Important business logic should ideally be testable without infrastructure.
+- dependencias ocultas;
+- demasiadas responsabilidades;
+- estado mutable compartido;
+- infraestructura mezclada con negocio;
+- estado global.
 
+La lógica de negocio importante debería poder probarse sin infraestructura.
 
-## Test strategies independently
+## Probar las estrategias por separado
 
-When using Strategy, Dispatcher or Composite:
+Al usar Estrategia, Despachador o Compuesto:
 
-- test individual strategies independently;
-- test dispatcher selection separately from strategy behavior;
-- test composite orchestration separately from individual rule behavior when useful.
+- probá cada estrategia de manera independiente;
+- probá la selección del despachador aparte del comportamiento de la estrategia;
+- probá la coordinación del compuesto aparte de las reglas individuales cuando sea útil.
 
-Avoid large tests where a failure makes it unclear which strategy or rule caused the problem.
+Evitá pruebas tan amplias que dificulten identificar qué estrategia o regla falló.
 
+## Cobertura
 
-## Coverage
+Usá la cobertura como información para orientar la revisión. La corrección requiere afirmaciones significativas que comprueben el comportamiento relevante.
 
-Coverage is useful information, not proof of correctness.
+# 23. Análisis estático y formato
 
-Tests must contain meaningful assertions and verify relevant behavior.
+Las herramientas configuradas forman parte de los criterios del proyecto.
 
+Respetá:
 
-# 23. Static analysis and formatting
-
-The configured project tools are part of the engineering contract.
-
-Respect:
-
-- Kotlin compiler;
+- el compilador de Kotlin;
 - ktlint;
-- detekt;
-- tests;
-- Gradle build.
+- Detekt;
+- las pruebas;
+- la construcción con Gradle.
 
-Do not:
+Evitá:
 
-- disable a rule globally just to make a change pass;
-- comment out a failing test;
-- ignore a build failure;
-- suppress warnings broadly without justification.
+- deshabilitar una regla global para que pase un cambio;
+- comentar una prueba que falla;
+- ignorar un fallo de compilación o verificación;
+- suprimir advertencias ampliamente sin justificación.
 
-If suppression is genuinely necessary:
+Cuando sea necesario suprimir una advertencia:
 
-- keep it as local as possible;
-- make the reason understandable.
+- hacelo en el lugar más acotado posible;
+- explicá el motivo con claridad.
 
+# 24. Construcción y reproducibilidad
 
-# 24. Build and reproducibility
-
-The project must be verifiable through a single reproducible command:
+El proyecto debe poder verificarse con un solo comando reproducible:
 
 ```bash
 ./gradlew build
 ```
 
-The build should compile, run configured static checks, execute tests and package the application as configured by the project.
+La construcción debe compilar, ejecutar los análisis estáticos y las pruebas configuradas y empaquetar la aplicación.
 
-Do not require undocumented manual preparation steps before running the build.
+Mantené documentada cualquier preparación manual necesaria para ejecutarla. Da por terminado el trabajo cuando la construcción pase.
 
-Do not consider a task finished while the build is red.
+# 25. Mantener sana la rama principal
 
+Los cambios destinados a integrarse deben dejar en verde la construcción del proyecto.
 
-# 25. Keep the main branch healthy
+Corregí estas situaciones:
 
-Changes intended for merge must leave the project build green.
+- construcciones que fallan;
+- pruebas ignoradas;
+- comprobaciones deshabilitadas;
+- omisiones temporales del linter;
+- TODO pendientes creados solo para que pase la tarea.
 
-Do not normalize:
+Si el cambio rompe la construcción, corregilo antes de dar la implementación por terminada. Si la rama principal queda en rojo, corregí o revertí la causa.
 
-- broken builds;
-- ignored tests;
-- disabled checks;
-- temporary linter bypasses;
-- unresolved TODOs introduced only to make the task pass.
+# 26. Mantener el alcance enfocado
 
-If a change breaks the build, fix it before considering the implementation complete.
+Implementá el ticket o caso de uso solicitado. Dejá las historias futuras y las refactorizaciones amplias ajenas al pedido para otros cambios.
 
-A red main branch is a problem to fix or revert, not a state to tolerate.
+Si aparece un problema no relacionado:
 
+1. registralo;
+2. creá o proponé un ticket separado si hace falta;
+3. conservá el alcance del cambio actual.
 
-# 26. Keep changes focused
+Cada PR debería tener un propósito coherente.
 
-Implement the requested ticket or use case.
+# 27. Evitar arquitectura especulativa
 
-Do not opportunistically implement unrelated future User Stories.
+Implementá funcionalidades que respondan a necesidades actuales.
 
-Do not perform a large unrelated refactor while solving a small ticket.
+Antes de introducir una abstracción, preguntate:
 
-If an unrelated problem is discovered:
+1. ¿La necesita el requisito actual?
+2. ¿Representa una frontera real de arquitectura?
+3. ¿Existe variación concreta?
+4. ¿Hace que el código importante sea más fácil de entender?
+5. ¿Estrategia, Despachador, Compuesto u otro patrón simplifican realmente esa variación?
 
-1. mention it;
-2. create or propose a separate ticket if necessary;
-3. keep the current change focused.
+Si la respuesta es negativa, elegí la solución más simple.
 
-A pull request should have one coherent purpose.
+# 28. Mantener el framework en los bordes
 
+Spring pertenece a la infraestructura. Acotá sus detalles al borde y mantené el negocio centrado en el problema.
 
-# 27. Avoid speculative architecture
+Preferí anotaciones y configuración del framework en:
 
-Do not build functionality simply because it may be useful later.
+- controladores;
+- clases de configuración;
+- adaptadores;
+- implementaciones de persistencia.
 
-Before introducing an abstraction, ask:
+Diseñá las clases de negocio a partir del problema que resuelven.
 
-1. Does the current requirement need it?
-2. Does it represent a real architectural boundary?
-3. Is there actual variation?
-4. Does it make the important code easier to understand?
-5. Would Strategy, Dispatcher, Composite or another pattern actually simplify the variation?
+# 29. Hacer visibles los efectos secundarios
 
-If the answer is no, prefer the simpler solution.
+El código debe dejar claro cuándo produce efectos secundarios.
 
-
-# 28. Framework code should stay at the edges
-
-Spring is infrastructure.
-
-Avoid spreading Spring-specific concerns through business code.
-
-Prefer framework annotations and configuration in:
-
-- controllers;
-- configuration classes;
-- adapters;
-- persistence implementations.
-
-Avoid designing business classes around Spring rather than around the problem being solved.
-
-
-# 29. Side effects should be visible
-
-Code performing side effects should make that fact clear.
-
-Examples:
+Ejemplos:
 
 ```text
 repository.save(...)
@@ -1746,30 +1626,27 @@ contentStorage.store(...)
 printScriptClient.validate(...)
 ```
 
-Avoid hiding important side effects inside:
+Evitá esconder efectos importantes dentro de:
 
-- constructors;
+- constructores;
 - getters;
-- property access;
-- mapping functions;
-- apparently pure transformations.
+- accesos a propiedades;
+- funciones de conversión;
+- transformaciones aparentemente puras.
 
-Bad:
+Ejemplo problemático si `toSnippet()` realiza HTTP o persistencia:
 
 ```kotlin
 val snippet = request.toSnippet()
 ```
 
-if `toSnippet()` secretly performs HTTP or persistence.
+Las funciones de conversión normalmente deben ser puras.
 
-Mapping functions should normally be pure.
+# 30. Preferir flujos explícitos
 
+El comportamiento importante debe poder verse desde el caso de uso.
 
-# 30. Prefer explicit workflows over hidden behavior
-
-Important behavior should be visible from the use case.
-
-Good:
+Ejemplo:
 
 ```kotlin
 fun update(command: UpdateSnippetCommand): UpdateSnippetResult {
@@ -1790,94 +1667,86 @@ fun update(command: UpdateSnippetCommand): UpdateSnippetResult {
 }
 ```
 
-Avoid hiding important business behavior through:
+Evitá ocultar comportamiento de negocio importante en:
 
-- entity lifecycle hooks;
-- magic listeners;
-- unexpected framework callbacks;
-- setters with side effects;
-- overly generic interceptors.
+- hooks del ciclo de vida de entidades;
+- listeners con comportamiento implícito;
+- callbacks inesperados del framework;
+- setters con efectos secundarios;
+- interceptores demasiado genéricos.
 
-Use framework mechanisms when they simplify infrastructure, but keep business workflows explicit.
+Usá mecanismos del framework cuando simplifiquen infraestructura y mantené explícitos los flujos de negocio.
 
+# 31. Preferir composición cuando una clase acumula responsabilidades
 
-# 31. Prefer composition over oversized classes
+Si una clase tiene muchos colaboradores sin relación entre sí, revisá su responsabilidad.
 
-If a class has many unrelated collaborators, reconsider its responsibility.
+Un caso de uso puede coordinar varios colaboradores. Los detalles internos de cada uno quedan en su implementación.
 
-A use case may orchestrate several collaborators, but it should not implement their internal details.
+Señales para revisar:
 
-Warning signs:
+- una clase tiene muchas dependencias que no están relacionadas;
+- los métodos operan sobre conceptos distintos;
+- motivos distintos obligan a modificar la misma clase;
+- la clase mezcla HTTP, persistencia, conversiones y reglas de negocio;
+- entender un método exige conocer gran parte del framework.
 
-- a class has many unrelated dependencies;
-- methods operate on unrelated concepts;
-- unrelated reasons cause the same class to change;
-- a class mixes HTTP, persistence, mapping and business rules;
-- understanding one method requires understanding most of the framework.
+Preferí componer componentes pequeños con responsabilidades claras.
 
-Prefer composing small components with clear responsibilities.
+# 32. Compartir la lógica de negocio entre puntos de entrada
 
+Los puntos de entrada del mismo caso de uso deben llegar a la misma lógica de aplicación.
 
-# 32. Do not duplicate business logic across entry points
-
-Different entry points representing the same use case should converge on the same application logic.
-
-For example:
+Por ejemplo:
 
 ```text
-Create snippet from file
-Create snippet from browser editor
-            ↓
-    CreateSnippetUseCase
+Crear un snippet desde un archivo
+Crear un snippet desde el editor del navegador
+        ↓
+CreateSnippetUseCase
 ```
 
-Do not create separate business implementations simply because the input arrived through different UI mechanisms.
+Compartí la implementación de negocio aunque la entrada llegue desde distintos mecanismos de la interfaz.
 
-Likewise:
+También aplica a:
 
 ```text
-Update from file
-Update from editor
+Actualizar desde un archivo
+Actualizar desde el editor
         ↓
 UpdateSnippetUseCase
 ```
 
-Transport differences belong at the boundary.
+Las diferencias de transporte se resuelven en el borde. El comportamiento de negocio vive en el caso de uso compartido.
 
-Business behavior belongs in the shared use case.
+# 33. Ubicar las conversiones en su frontera
 
+La lógica de conversión debe vivir cerca del límite que traduce.
 
-# 33. Prefer explicit ownership of mappings
-
-Mapping logic should live near the boundary it translates.
-
-Examples:
+Ejemplos:
 
 ```text
-HTTP DTO → application command
-web boundary
+DTO HTTP → comando de aplicación
+    frontera web
 
-JPA entity → domain model
-persistence boundary
+Entidad JPA → modelo de dominio
+    frontera de persistencia
 
-remote HTTP response → application model
-HTTP client / adapter boundary
+Respuesta HTTP remota → modelo de aplicación
+    frontera del cliente o adaptador HTTP
 ```
 
-Avoid a global:
+Evitá concentrar conversiones ajenas entre sí en una clase global como:
 
 ```text
 MapperUtils
 ```
 
-class containing unrelated mappings from the entire application.
+# 34. Dificultar la representación de estados inválidos
 
+Cuando sea práctico, representá explícitamente los conceptos importantes con tipos que distingan sus responsabilidades.
 
-# 34. Make invalid states difficult to represent
-
-When practical, model important concepts explicitly instead of relying on loosely related primitive values.
-
-For example, where justified:
+Ejemplo cuando está justificado:
 
 ```kotlin
 @JvmInline
@@ -1886,9 +1755,9 @@ value class SnippetId(
 )
 ```
 
-rather than passing unrelated `UUID` values everywhere.
+Esto permite distinguir identificadores que de otra forma circularían todos como `UUID`.
 
-Another example:
+Otro ejemplo:
 
 ```kotlin
 sealed interface ValidationResult {
@@ -1900,103 +1769,90 @@ sealed interface ValidationResult {
 }
 ```
 
-instead of:
+La siguiente representación deja implícitas las diferencias entre resultados:
 
 ```kotlin
 Pair<Boolean, List<String>>
 ```
 
-Do not introduce wrapper types mechanically.
+Introducí tipos envoltorio solo cuando:
 
-Use them when they:
+- prevengan errores realistas;
+- aclaren conceptos importantes del dominio;
+- dificulten construir combinaciones inválidas.
 
-- prevent realistic mistakes;
-- clarify important domain concepts;
-- make invalid combinations harder to construct.
+# 35. Antes de cambiar código existente
 
+Antes de refactorizar o reemplazar una parte de la arquitectura:
 
-# 35. Before changing existing code
+1. entendé por qué existe el código actual;
+2. revisá las pruebas existentes;
+3. revisá las interfaces y contratos públicos;
+4. preservá el comportamiento salvo que el ticket lo cambie explícitamente;
+5. evitá reescrituras amplias cuando alcanza un cambio puntual.
 
-Before refactoring or replacing existing architecture:
+Conservá el código funcional ante preferencias de estilo. Si la implementación actual resuelve bien el problema, extendela.
 
-1. understand why the current code exists;
-2. inspect existing tests;
-3. inspect existing interfaces and public contracts;
-4. preserve behavior unless the ticket explicitly changes it;
-5. avoid broad rewrites when a small change is enough.
+# 36. Verificar los cambios generados con IA
 
-Do not rewrite working code purely to match a preferred style.
+Un agente de IA colabora en la implementación y la revisión. La corrección se comprueba con las herramientas automatizadas del proyecto.
 
-If the existing implementation already solves the problem cleanly, extend it instead of replacing it unnecessarily.
-
-
-# 36. AI-generated changes must still be verified
-
-An AI agent is a contributor and reviewer, not the source of truth.
-
-Do not assume code is correct because it was generated successfully.
-
-Use the automated project tools to verify the result.
-
-The expected flow is:
+El flujo esperado es:
 
 ```text
-AI proposes or implements
+La IA propone o implementa
         ↓
-compiler
+compilador
         ↓
-static analysis
+análisis estático
         ↓
-tests
+pruebas
         ↓
-build
+construcción
 ```
 
-The agent should use judgment to propose a design.
+El agente debe usar su criterio para proponer un diseño. Las comprobaciones automatizadas del proyecto proveen una verificación reproducible.
 
-The project's automated checks provide reproducible verification.
+# 37. Antes de terminar un cambio
 
+Verificá todos estos puntos:
 
-# 37. Before finishing a change
+- ¿La responsabilidad está en el servicio correcto?
+- ¿La responsabilidad está en la capa correcta?
+- ¿Los detalles HTTP se limitan al borde web?
+- ¿El código de aplicación, dominio y persistencia queda libre de códigos de estado HTTP?
+- ¿La persistencia está aislada de HTTP y de la orquestación de negocio?
+- ¿Los detalles del HTTP externo quedan en clientes y adaptadores?
+- ¿El código de negocio importante es pequeño y fácil de leer?
+- ¿Las clases que más cambian siguen simples y enfocadas?
+- ¿El flujo principal se entiende al leer el método principal del caso de uso?
+- ¿Los métodos importantes son declarativos?
+- ¿Los nombres describen la intención?
+- ¿Se evita el estado mutable cuando es práctico?
+- ¿Las transformaciones o reglas de dominio podrían ser puras?
+- ¿Los efectos secundarios son explícitos?
+- ¿Los detalles técnicos estables están aislados de la lógica que cambia seguido?
+- ¿Los detalles estables se agrupan por responsabilidad?
+- ¿Se evitaron agrupaciones genéricas como `Utils`, `Helpers` o `Common`?
+- ¿Había una oportunidad concreta para Estrategia, Despachador, Compuesto u otro patrón?
+- Si se introdujo un patrón, ¿simplifica una variación real con una indirección justificada?
+- Si hay comportamientos intercambiables, ¿conviene representarlos como estrategias?
+- Si hay que elegir una implementación, ¿un despachador simplificaría a quien la invoca?
+- Si varias implementaciones actúan como una, ¿un compuesto simplificaría a quien las usa?
+- ¿Se evitaron abstracciones innecesarias?
+- ¿Se evitaron dependencias innecesarias?
+- ¿Los DTO y las entidades de persistencia están separados donde corresponde?
+- ¿Los errores esperados se representan explícitamente?
+- ¿Los errores HTTP se traducen en el borde web?
+- ¿Las pruebas cubren el comportamiento relevante?
+- ¿Las estrategias y reglas se pueden probar independientemente cuando aplica?
+- ¿Las fronteras de infraestructura tienen pruebas de integración donde corresponde?
+- ¿La configuración es externa?
+- ¿Los secretos quedan fuera del repositorio?
+- ¿Los registros son apropiados para stdout/stderr?
+- ¿El cambio conserva el alcance del ticket?
+- ¿Se dejaron fuera las historias de usuario futuras que no se pidieron?
+- ¿Se preservó el comportamiento fuera del alcance?
+- ¿Pasa `./gradlew build`?
 
-Verify all of the following:
-
-- Is the responsibility in the correct service?
-- Is the responsibility in the correct layer?
-- Are HTTP concerns confined to the web boundary?
-- Are HTTP status codes absent from application, domain and persistence code?
-- Is persistence isolated from HTTP and business orchestration?
-- Are external HTTP details isolated in clients/adapters?
-- Is important business code small and easy to read?
-- Are the most frequently changing classes simple and focused?
-- Is the main business workflow obvious from the main use-case method?
-- Are important methods declarative?
-- Are names descriptive?
-- Is mutable state avoided where practical?
-- Could transformations or domain rules be pure?
-- Are side effects explicit?
-- Are stable technical details isolated from frequently changing business logic?
-- Are stable details grouped by responsibility rather than placed in generic containers?
-- Did we avoid generic `Utils`, `Helpers`, `Common` or similar junk drawers?
-- Was there a real opportunity for Strategy, Dispatcher, Composite or another design pattern?
-- If a pattern was introduced, does it simplify real variation rather than add unnecessary indirection?
-- If multiple interchangeable behaviors exist, should they be represented as Strategies?
-- If one implementation must be selected, would a Dispatcher simplify the caller?
-- If multiple implementations must participate as one, would a Composite simplify the caller?
-- Did we avoid unnecessary abstractions?
-- Did we avoid unnecessary dependencies?
-- Are DTOs separated from persistence entities where appropriate?
-- Are expected errors represented explicitly?
-- Are HTTP errors translated only at the web boundary?
-- Are relevant behaviors tested?
-- Are strategies/rules independently testable where applicable?
-- Are infrastructure boundaries integration-tested where appropriate?
-- Is configuration externalized?
-- Are secrets absent from the repository?
-- Is logging suitable for stdout/stderr?
-- Is the change focused on the requested ticket?
-- Did we avoid implementing future User Stories without being asked?
-- Did we preserve existing behavior that was outside the scope of the ticket?
-- Does `./gradlew build` pass?
-
-If one of these answers is no, fix it or explicitly justify why the exception is necessary.
+Si alguna respuesta es negativa, corregí el problema o justificá explícitamente la excepción.

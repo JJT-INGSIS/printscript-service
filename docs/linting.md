@@ -1,8 +1,8 @@
-# SNI-60 — lint real de PrintScript
+# Lint
 
-Conecta el linter publicado en `printscript-v1:1.2.0` (sin modificar el TP)
-con HTTP interno y la capacidad Language. No guarda configuraciones/resultados,
-no emite ni consume Redis y no modifica creación/actualización ni NDJSON.
+La API síncrona analiza la selección enviada por el cliente. Los lotes de
+Snippets usan [operaciones durables](execution.md#operaciones-durables).
+
 
 ## Contrato interno
 
@@ -18,7 +18,7 @@ predeterminada del linter.** Las factories ofrecen defaults que activan reglas;
 esta API construye siempre el linter a partir de la selección explícita.
 Una regla ausente, false o null se interpreta exclusivamente según el reader de
 la biblioteca; no se utiliza `defaultConfiguration()` como fallback.
-Un futuro caso de uso que elija defaults debe hacerlo explícitamente.
+El catálogo incluye el mapa `defaults` de la biblioteca para la versión solicitada. El cliente lo envía explícitamente si quiere aplicarlo.
 
 El catálogo conserva id, type (boolean/integer/choice), acceptsNull, choices y
 conflictsWith. Las opciones CHOICE y su validación se obtienen de
@@ -44,7 +44,7 @@ Un incumplimiento de estilo no invalida por sí solo un guardado.
 
 ## Identidad y límites
 
-Se extiende exactamente SNI-76: `capabilities.lint` en GET /processor y header
+Identidad del procesador: `capabilities.lint` en GET /processor y header
 `Processor-Revision` en todas las respuestas /linting y /linting/**, incluyendo
 rechazos. Se calcula con el digest del artefacto y la configuración efectiva de
 lint, usando el mismo formato `sha256-v1:<64 hex>`.
@@ -57,53 +57,5 @@ Sin artefacto verificable no se inventa una revisión.
 | linting.diagnostic-limit | 1000 |
 
 Los límites positivos acotan entrada y resultados; aumentarlos exige evaluar
-memoria/latencia. El cliente conserva los timeouts existentes de PrintScript.
+memoria y latencia.
 Un timeout del cliente no equivale a detener una operación remota.
-
-## Language
-
-`Language.lintingCatalog`, `checkLintingRules` y `lint` seleccionan la estrategia
-`LanguageLinter`. `PrintScriptLinter` utiliza el transporte existente
-`PrintScriptExchange`, sin cliente genérico ni nueva jerarquía de transporte.
-El mapa de reglas, incluyendo {} y valores null, viaja sin reinterpretación.
-Los resultados son tipados: catálogo, chequeo, análisis, código no analizable,
-reglas inválidas, límites, capacidad/versión no soportada y falla técnica.
-Cada respuesta incluye `Attributed.processor` siguiendo SNI-76; los consumidores
-de resultados deben verificarla contra la revisión esperada antes de publicarlos.
-El adaptador no convierte fallas técnicas en incumplimientos.
-
-## Decisiones y alcance aprobados
-
-Juan aprobó el plan y sus cuatro condiciones en este chat el 02/11/2026.
-Se reutilizan las conventions de SNI-59: reglas explícitas obligatorias, chequeo
-separado, selección de capacidad por lenguaje y transporte HTTP existente.
-Se descarta usar defaults ante selección vacía porque cambiaría la intención del
-usuario; también se descarta duplicar el catálogo/CHOICE desde UI o Snippets.
-Se mantiene un contrato específico de lint en vez de generalizar los motores de
-formato/lint. Costo: DTOs específicos y traducción de los diagnósticos del TP.
-
-El procesamiento es síncrono en este proveedor. US14/SNI-63 conserva configuración
-de usuarios; SNI-64 conecta el reprocesamiento asíncrono. Ninguno se implementa aquí.
-
-## Verificación
-
-Ejecutar `./gradlew build` con JDK 21 en ambos servicios. PrintScript requiere las
-credenciales existentes de lectura de GitHub Packages; Snippets usa Docker para
-sus integraciones PostgreSQL/Redis, directamente desde Java, sin sockets montados
-en runners. No se necesita la VM de dev.
-
-Las pruebas específicas cubren defaults frente a selección vacía, reglas activas/
-inactivas, CHOICE y null, diagnósticos Unicode, errores léxicos/sintácticos,
-límites, contrato HTTP, identidad de lint, proveedor caído, timeout y dispatch.
-
-## Defaults reales — SNI-77 (04/11/2026)
-
-Thiago aprobó ampliar GET /linting/rules con `defaults`, un mapa de selección
-explícita obtenido de defaultConfiguration() de la biblioteca publicada para
-cada versión. Se conserva `rules` y la revisión efectiva. No se activa ese mapa
-al recibir {}: el análisis sigue exigiendo una selección explícita.
-
-La adaptación codifica las reglas elegidas por la factory, sin decidir sus valores.
-LintDefaultsTest reconstruye la configuración a partir del mapa y compara sus
-reglas exactamente con las de las factories 1.0/1.1 reales. También comprueba
-validez y diferencia de comportamiento frente a {}. No se modificó la biblioteca.

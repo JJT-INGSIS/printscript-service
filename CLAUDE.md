@@ -1,3 +1,3 @@
-# Project instructions
+# Instrucciones del proyecto
 
 @AGENTS.md

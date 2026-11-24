@@ -1,9 +1,8 @@
-# SNI-59 — Formato con el formatter real de PrintScript
+# Formato
 
-El servicio formatea código PrintScript 1.0 y 1.1 con el formatter de la
-biblioteca `printscript-v1:1.2.0`, y publica qué reglas acepta cada versión.
-Es una API interna: Language la adapta y Snippets decide quién puede usarla.
-No guarda configuraciones por usuario ni reprocesa snippets.
+PrintScript 1.0 y 1.1 se formatean con la biblioteca del servicio.
+Snippets guarda las reglas del usuario y coordina el reprocesamiento.
+
 
 ## API
 
@@ -77,59 +76,3 @@ cambia esa revisión, pero no las de validar ni ejecutar. Toda respuesta de
 `/formatting/**` trae el header `Processor-Revision` con esa revisión, y
 `GET /processor` la lista en `capabilities.format`
 (ver [identidad del procesador](processor-identity.md)).
-
-## Diseño
-
-| Pieza | Qué hace |
-| --- | --- |
-| `FormattingController`, `FormattingRequests`, `FormattingResponses` | Rutas, bodies y traducción a HTTP |
-| `FormattingService` | Valida las reglas, controla el tamaño y formatea |
-| `PrintScriptFormatters` | Único lugar que conoce las clases de la biblioteca de cada versión |
-| `FormattingRuleCheck` | Traduce los motivos de la biblioteca y aplica el tope |
-| `FormattingRuleDescriptions` | Texto en castellano de cada regla |
-| `FormattedText` | Junta el resultado y corta si pasa el límite |
-| `FormattingLimits` | Límites configurables |
-
-## Decisiones
-
-Aprobadas por Juan el 31/10/2026 («dale vamos con esas 6») y ajustadas el
-01/11/2026, cuando el equipo aprobó publicar la 1.2.0 («aprobadas las 6»).
-
-| # | Decisión | Alternativa descartada | Costo aceptado |
-| --- | --- | --- | --- |
-| 1 | El catálogo y la validación por regla vienen de la biblioteca 1.2.0 (#121) | Lista en el servicio con un test por reflexión contra la biblioteca | Hubo que publicar una versión nueva de la biblioteca |
-| 2 | Tres rutas: catálogo, chequeo y formato | Una sola ruta que formatea y valida | — |
-| 3 | No validar sintaxis antes de formatear | Pasar primero por el parser | Se formatea código que no compila |
-| 4 | Límites de 1 MiB de código, 2 MiB de resultado y números hasta 10 | Sin límites (la biblioteca acepta hasta `Int.MAX_VALUE`) | Configs grandes se rechazan |
-| 5 | Language usa una estrategia de formateo con resultados tipados | Language llama a HTTP directo | — |
-| 6 | Revisión `format` = artefacto + límites, en todo `/formatting/**` | Reusar la revisión de validar | Una capacidad más en `/processor` |
-
-La 1.2.0 trae también el refactor del formatter (#120): agrega
-`mandatory-line-breaks-inside-if` en 1.1 y corrige `if-brace-below-line`.
-Validar y ejecutar no cambian.
-
-## Verificación
-
-`./gradlew build`:
-
-- `FormattingServiceTest`: cada regla, Unicode y CRLF, errores léxicos, motivos de las violaciones, tope, límites en bytes UTF-8.
-- `FormattingHttpTest`: catálogo, versión no soportada, chequeo, formato, Problem Details, body mal formado.
-- `FormattingRuleDescriptionsTest`: toda regla de la biblioteca tiene descripción.
-- `ProcessorIdentityTest` y `ProcessorRevisionHttpTest`: revisión `format` y header en `/formatting/**`.
-
-### Evidencia con Compose — 01/11/2026
-
-Imagen construida desde infra con
-`docker compose --profile ui --profile ingress up -d --build printscript-service snippets-service`:
-
-| Comprobación | Resultado |
-| --- | --- |
-| `sha256sum /app/app.jar` dentro de la imagen | `7119dd89…ecd2`, igual a `artifact` de `GET /processor` |
-| `capabilities.format` en `GET /processor` | `sha256-v1:2001166d…5289` |
-| `GET /formatting/rules?version=1.1` | `200`, 12 reglas (incluye `mandatory-line-breaks-inside-if`), header = `capabilities.format` |
-| `POST /formatting` de `if(true){println(1);}` con llave abajo, saltos dentro del `if` y sangría 2 | `200`, `"if(true)\n{\n  println(1);\n}"`, header = `capabilities.format` |
-| Reglas inválidas en 1.0 (`indent-inside-if`, `"true"`, `11`) | `422` `invalid-formatting-rules` con `unavailable-in-version`, `wrong-type` y `out-of-range` |
-| Texto sin cerrar | `200`, `formatted:false`, `UNTERMINATED_STRING` en 1:9 |
-| Versión `9.9` | `422` con `supportedVersions` |
-| `POST /validate` | Sin cambios: válido, con la revisión de validar |
-| Aceptación SNI-53 (`scripts/verify_us8_10.py`) | 15/15: la 1.2.0 no cambió validar ni ejecutar |

@@ -1,4 +1,4 @@
-# PrintScript Service
+# Servicio de PrintScript
 
 Servicio HTTP interno de Snippet Searcher. Valida, formatea, analiza y ejecuta código PrintScript 1.0 y 1.1 con la biblioteca `printscript-v1:1.2.0`. Snippets autoriza las operaciones de usuario y guarda los snippets. PrintScript usa Redis para conservar el estado y los resultados de las operaciones durables de lint y formato.
 
@@ -10,7 +10,7 @@ Servicio HTTP interno de Snippet Searcher. Valida, formatea, analiza y ejecuta c
 | Formatear y consultar o validar reglas | `POST /formatting`, `GET /formatting/rules`, `POST /formatting/rules/check` | [Formato](docs/formatting.md) |
 | Analizar con lint y consultar o validar reglas | `POST /linting`, `GET /linting/rules`, `POST /linting/rules/check` | [Lint](docs/linting.md) |
 | Iniciar una sesión de ejecución, consultar estado, enviar inputs, leer eventos NDJSON y cancelar | `POST /executions`, `GET /executions/{id}`, `POST /executions/{id}/inputs`, `GET /executions/{id}/events`, `POST /executions/{id}/cancel` | [Ejecución](docs/execution.md) |
-| Iniciar o recuperar, consultar y cancelar operaciones durables | `PUT /operations/{id}`, `GET /operations/{id}`, `POST /operations/{id}/cancel` | [Operaciones durables](docs/durable-operations.md) |
+| Iniciar o recuperar, consultar y cancelar operaciones durables | `PUT /operations/{id}`, `GET /operations/{id}`, `POST /operations/{id}/cancel` | [Operaciones durables](docs/execution.md#operaciones-durables) |
 | Consultar revisiones y capacidades del procesador | `GET /processor` | [Identidad del procesador](docs/processor-identity.md) |
 
 Las operaciones durables están deshabilitadas por defecto. Para habilitarlas se requiere Redis, `PRINTSCRIPT_OPERATIONS_ENABLED=true` y `PRINTSCRIPT_OPERATIONS_DEPLOYMENT_MODE=single-stop-first`. Usá la configuración del [stack de infraestructura](https://github.com/JJT-INGSIS/snippet-searcher-infra) para el despliegue.
