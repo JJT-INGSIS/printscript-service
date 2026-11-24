@@ -24,7 +24,8 @@ class FormattingService(
         rules: Map<String, JsonNode>,
         keepRunning: () -> Boolean = { true },
     ): FormattingOutcome {
-        val violations = check(version, rules)
+        val configuration = configurationOf(rules)
+        val violations = FormattingRuleCheck(version, limits.maximumCount).violations(rules, configuration)
         return when {
             violations.isNotEmpty() -> {
                 FormattingOutcome.InvalidRules(violations)
@@ -38,7 +39,7 @@ class FormattingService(
                 formatted(
                     version = version,
                     code = code,
-                    configuration = configurationOf(rules),
+                    configuration = configuration,
                     keepRunning = keepRunning,
                 )
             }
