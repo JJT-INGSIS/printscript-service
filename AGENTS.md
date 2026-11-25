@@ -1,223 +1,235 @@
-# Engineering Guidelines — Snippet Searcher
+# Guía de ingeniería de Snippet Searcher
 
-These instructions apply to every code change in this repository.
-Prefer simple, readable, testable and maintainable code over clever or over-engineered solutions.
+Estas instrucciones se aplican a todos los cambios de código de este repositorio.
+Priorizá soluciones simples, legibles, comprobables y fáciles de mantener.
 
-## 1. Scope and preparation
+## 1. Alcance y preparación
 
-- Treat each service as an independent repository; respect service ownership.
-- Understand the requested use case and identify the service and layer responsible before implementing.
-- Inspect existing code, tests, interfaces and public contracts before changing architecture.
-- Preserve existing behavior and architectural boundaries unless the task explicitly changes them.
-- Extend working code instead of rewriting it solely to match a preferred style.
-- Implement only the requested ticket; do not implement future User Stories or unrelated refactors.
-- Mention unrelated problems and propose separate work rather than expanding the current change.
-- Keep each pull request focused on one coherent purpose.
+- Tratá cada servicio como un repositorio independiente y respetá sus responsabilidades.
+- Antes de implementar, entendé el caso de uso e identificá el servicio y la capa responsables.
+- Revisá el código, las pruebas, las interfaces y los contratos públicos antes de cambiar la arquitectura.
+- Preservá el comportamiento y los límites de arquitectura existentes salvo que el pedido los cambie explícitamente.
+- Extendé el código que ya funciona. Las preferencias de estilo por sí solas no justifican una reescritura.
+- Implementá únicamente el ticket solicitado. Dejá fuera historias de usuario futuras y refactorizaciones ajenas al pedido.
+- Registrá los problemas ajenos al pedido y proponé resolverlos por separado.
+- Mantené un propósito coherente por PR.
 
-The complete reference, including the original examples, is in
-[docs/engineering-guidelines.md](docs/engineering-guidelines.md).
-Read the relevant sections when making architectural decisions, choosing patterns,
-designing error contracts or tests, or when these concise rules need clarification.
-The reference explains these rules; it is not a reason to expand the requested scope.
+La referencia completa, con los ejemplos originales, está en la
+[guía de ingeniería](docs/engineering-guidelines.md).
+Consultá las secciones correspondientes al tomar decisiones de arquitectura,
+elegir patrones, diseñar contratos de error o pruebas, o aclarar estas reglas.
+La referencia desarrolla las reglas dentro del alcance solicitado.
 
-## 2. Service responsibilities
+## 2. Responsabilidades de los servicios
 
 ### snippets-service
 
-Owns snippet use cases, metadata, workflow orchestration, the `Language` abstraction,
-and coordination with storage, Permissions and language-specific services.
+Se encarga de los casos de uso de snippets, sus metadatos, sus flujos, la
+abstracción `Language` y la coordinación con almacenamiento, Permissions
+y servicios específicos de cada lenguaje.
 
-Does not own PrintScript parsing or validation implementation, permissions persistence,
-authentication or Azure storage implementation.
-It may request validation for a language/version without knowing how PrintScript works internally.
+La implementación del parser y la validación de PrintScript, la persistencia
+de permisos, la autenticación y la implementación del almacenamiento en Azure
+quedan fuera de su responsabilidad.
+Puede solicitar validación para un lenguaje y una versión sin conocer el
+funcionamiento interno de PrintScript.
 
 ### permissions-service
 
-Owns snippet ownership, access relationships, sharing and permissions.
+Se encarga de la titularidad de snippets, las relaciones de acceso, el acceso compartido y los permisos.
 
-Does not own authentication, snippet content, snippet metadata or PrintScript behavior.
-Authentication will be delegated to Auth0 when introduced by the course.
+La autenticación, el contenido, los metadatos y el comportamiento de PrintScript
+quedan fuera de su responsabilidad. Auth0 se encarga de la autenticación.
 
 ### printscript-service
 
-Owns PrintScript validation, execution, formatting, linting and other PrintScript-specific
-capabilities only when required by requested User Stories.
+Se encarga de la validación, la ejecución, el formateo, el análisis de estilo y
+otras capacidades propias de PrintScript que exijan las historias solicitadas.
 
-Does not own snippets, snippet metadata, ownership, permissions or users.
+Los snippets, sus metadatos, la titularidad, los permisos y los usuarios
+quedan fuera de su responsabilidad.
 
-### Storage
+### Almacenamiento
 
-The course will provide the storage interface and its Azure-backed implementation.
-Integrate that contract only when it becomes available.
-Do not invent a replacement, implement Azure directly, bypass the abstraction,
-or duplicate snippet content as another authoritative source.
+Usá el contrato de almacenamiento provisto por la cátedra y su implementación
+respaldada por Azure cuando estén disponibles para el caso de uso.
+Evitá inventar un reemplazo, integrar Azure directamente, eludir la abstracción
+o duplicar el contenido como otra fuente de verdad.
 
-## 3. Architectural boundaries
+## 3. Límites de arquitectura
 
-Follow the existing package structure while keeping responsibilities explicit.
-Dependencies must point toward business logic; infrastructure implements required capabilities.
+Seguí la estructura de paquetes existente y mantené explícitas las responsabilidades.
+Las dependencias apuntan hacia el negocio. Infraestructura implementa las capacidades requeridas.
 
-- Web/controller: routes, request/response DTOs, status codes, headers, serialization,
-  transport-level validation and translation of application/domain outcomes to HTTP.
-- Application/use case: orchestrate business operations, enforce application rules,
-  coordinate collaborators and return meaningful application/domain results.
-- Domain: problem concepts and rules, independent of HTTP, Spring, WebClient, JPA,
-  PostgreSQL, environment variables and infrastructure-specific APIs.
-- Ports/capabilities: the narrow contracts needed by business logic.
-- Infrastructure: persistence, external clients, configuration and technical adapters.
+- Web y controladores. Rutas, DTO de pedido y respuesta, estados, encabezados,
+  serialización, validación del transporte y traducción de resultados a HTTP.
+- Aplicación y casos de uso. Orquestación de operaciones, reglas de aplicación,
+  coordinación de colaboradores y resultados significativos de aplicación o dominio.
+- Dominio. Conceptos y reglas del problema, independientes de HTTP, Spring,
+  WebClient, JPA, PostgreSQL, variables de entorno y API de infraestructura.
+- Puertos y capacidades. Contratos acotados que necesita la lógica de negocio.
+- Infraestructura. Persistencia, clientes externos, configuración y adaptadores técnicos.
 
-HTTP decisions belong only to the web boundary.
-Application/domain decides what happened; the web layer decides how it becomes HTTP.
-Use `@RestControllerAdvice` or explicit controller result mapping when appropriate.
-Application, domain and persistence must not return or construct `ResponseEntity`,
-`HttpStatus`, `ServerResponse` or `ResponseStatusException`.
+Las decisiones HTTP pertenecen a la capa web. La aplicación o el dominio
+decide qué ocurrió y la capa web lo representa mediante HTTP.
+Usá `@RestControllerAdvice` o conversión explícita de resultados en el controlador
+cuando corresponda. Mantené `ResponseEntity`, `HttpStatus`, `ServerResponse` y
+`ResponseStatusException` fuera de aplicación, dominio y persistencia.
 
-Keep Spring annotations and setup at the edges: controllers, configuration and adapters.
-Do not design business classes around framework details.
+Ubicá las anotaciones y configuración de Spring en los bordes, como
+controladores, configuración y adaptadores. Diseñá las clases de negocio
+alrededor del problema que resuelven.
 
-## 4. Use cases and workflows
+## 4. Casos de uso y flujos
 
-- Keep important business code small, focused and readable from top to bottom.
-- Make the main use-case method a declarative description of the workflow.
-- Extract meaningful steps such as `validateSnippet`, `storeContent`,
-  `persistMetadata`, `registerOwner` and `checkOwnership` when they clarify intent.
-- Use cases coordinate collaborators; they do not implement their internal infrastructure details.
-- Do not put HTTP construction, JSON details, JPA queries, Spring MVC concerns,
-  WebClient setup, environment access or low-level configuration in use cases.
-- Keep business operations visible instead of hiding them in entity hooks, listeners,
-  setters, constructors or unexpected framework callbacks.
-- Different entry points for the same operation must converge on the same use case.
-  Transport differences must not create duplicate business logic.
-- If a class has many unrelated collaborators or reasons to change, reconsider its responsibility.
-- Isolate frequently changing rules and workflows from stable technical complexity.
+- Mantené pequeño, enfocado y legible de arriba abajo el código de negocio importante.
+- Hacé que el método principal del caso de uso describa el flujo en forma declarativa.
+- Extraé pasos con intención concreta, como `validateSnippet`, `storeContent`,
+  `persistMetadata`, `registerOwner` y `checkOwnership`, cuando aclaren el flujo.
+- Los casos de uso coordinan colaboradores. Los detalles internos de infraestructura
+  quedan en cada colaborador.
+- Mantené fuera de los casos de uso la construcción de respuestas HTTP, los detalles
+  de JSON, las consultas JPA, Spring MVC, la configuración de WebClient, el acceso
+  al entorno y la configuración de bajo nivel.
+- Hacé visibles las operaciones de negocio. Evitá esconderlas en hooks de entidades,
+  listeners, setters, constructores o callbacks inesperados del framework.
+- Distintos puntos de entrada para la misma operación deben usar el mismo caso de
+  uso. Las diferencias de transporte se resuelven en el borde.
+- Revisá la responsabilidad de una clase con colaboradores o motivos de cambio ajenos entre sí.
+- Aislá las reglas y flujos que cambian con frecuencia de la complejidad técnica estable.
 
-## 5. Persistence and external clients
+## 5. Persistencia y clientes externos
 
-Persistence owns JPA entities, repositories, database queries, adapters and persistence mappings.
-It reports persistence outcomes; it must not decide authorization policy, business workflows,
-language validation, application orchestration or HTTP responses.
+La persistencia se encarga de entidades JPA, repositorios, consultas,
+adaptadores y conversiones de persistencia. Informa resultados de lectura y
+escritura. La autorización, los flujos de negocio, la validación de lenguajes,
+la orquestación y las respuestas HTTP quedan en sus capas correspondientes.
 
-Remote HTTP integrations belong in explicit clients/adapters such as
-`PrintScriptClient` and `PermissionsClient`.
-They own requests, serialization, URLs, headers, timeouts and remote HTTP handling.
-Translate transport failures into application-level failures such as
-`LanguageServiceUnavailable`; do not leak `WebClient`, `ClientResponse` or HTTP statuses
-into application/domain code.
-Clients must not absorb the use case.
+Las integraciones HTTP remotas pertenecen a clientes o adaptadores explícitos
+como `PrintScriptClient` y `PermissionsClient`. Se encargan de pedidos,
+serialización, URL, encabezados, tiempos de espera y manejo de respuestas HTTP.
+Traducí fallos de transporte a resultados de aplicación como
+`LanguageServiceUnavailable`. Mantené `WebClient`, `ClientResponse` y los códigos
+HTTP fuera de aplicación y dominio. El caso de uso conserva la coordinación.
 
-## 6. Models, mappings and errors
+## 6. Modelos, conversiones y errores
 
-- Distinguish external DTOs, application commands/results, domain models and persistence entities
-  when sharing a model would couple different responsibilities.
-- Do not expose persistence entities directly through HTTP.
-- Do not duplicate model classes mechanically.
-- Place mappings at the boundary they translate: web, persistence or remote client.
-- Keep mappings pure; do not hide HTTP or database operations in transformations.
-- Use explicit states/results and meaningful domain types when they prevent realistic mistakes.
-  Do not introduce wrapper types mechanically.
-- Represent expected failures explicitly: for example `SnippetNotFound`, `NotSnippetOwner`,
-  `InvalidCode`, `UnsupportedLanguage`, `UnsupportedVersion` and `StorageUnavailable`.
-- Do not use generic exceptions for expected flow when an explicit result communicates it better.
-- Do not catch every exception and silently turn it into a generic failure.
-- Preserve useful diagnostics, including rule, line and column, when translating failures.
-- Persistence and remote errors are not public HTTP decisions; translate only at the web boundary
-  according to the API contract.
+- Distinguí DTO externos, comandos y resultados de aplicación, modelos de
+  dominio y entidades cuando un modelo compartido acople responsabilidades.
+- Evitá exponer entidades de persistencia directamente por HTTP.
+- Separá clases de modelo cuando lo justifiquen sus responsabilidades.
+- Ubicá las conversiones en la frontera que traducen, sea web, persistencia o cliente remoto.
+- Mantené puras las conversiones. Evitá esconder HTTP u operaciones de base de datos.
+- Usá estados y resultados explícitos y tipos de dominio significativos cuando
+  prevengan errores realistas. Agregá tipos envoltorio solo si aportan valor.
+- Representá los fallos esperados explícitamente, por ejemplo `SnippetNotFound`,
+  `NotSnippetOwner`, `InvalidCode`, `UnsupportedLanguage`, `UnsupportedVersion` y `StorageUnavailable`.
+- Usá resultados explícitos para los casos esperados que expresen mejor que una excepción genérica.
+- Evitá capturas amplias que conviertan silenciosamente cualquier excepción en un fallo genérico.
+- Conservá diagnósticos útiles, incluidos regla, línea y columna, al traducir fallos.
+- La capa web traduce fallos de persistencia o de proveedores remotos de acuerdo con el contrato público.
 
-## 7. SOLID and design patterns
+## 7. SOLID y patrones de diseño
 
-Apply SOLID pragmatically: one clear reason to change, narrow capabilities,
-business dependencies on capabilities rather than infrastructure, and extension without
-repeatedly editing central orchestration when real variation exists.
+Aplicá SOLID con criterio. Buscá un motivo claro por el que cambia cada clase,
+capacidades acotadas, dependencias del negocio sobre capacidades y extensiones
+localizadas cuando exista variación real.
 
-Actively consider patterns when they simplify a concrete problem:
+Considerá patrones cuando simplifiquen un problema concreto:
 
-- Strategy: interchangeable behaviors implementing one capability.
-- Dispatcher: select one suitable strategy and delegate; do not absorb strategy logic.
-- Composite: apply multiple components through the same abstraction as a single component.
-- Strategy + Dispatcher: select behavior by language, version, rule or operation.
-- Strategy + Composite: compose independent rules, validators, formatters or policies.
+- Estrategia. Comportamientos intercambiables para la misma capacidad.
+- Despachador. Elige la estrategia adecuada y le delega su comportamiento.
+- Compuesto. Aplica múltiples componentes como uno mediante una abstracción común.
+- Estrategia y Despachador. Elige comportamiento por lenguaje, versión, regla u operación.
+- Estrategia y Compuesto. Combina reglas, validadores, formateadores o políticas independientes.
 
-Keep callers independent from concrete variants.
-Reconsider growing or duplicated type-based conditionals, but keep small local conditionals
-when they are clearer than extra classes.
+Mantené a los consumidores independientes de las variantes concretas.
+Revisá los condicionales por tipo cuando se repitan o crezcan. Conservá ramas
+locales y pequeñas cuando sean más claras que agregar clases.
 
-Before adding a pattern or abstraction, check that it represents a real boundary, variation
-or composition; removes repeated decisions; clarifies the caller; improves independent testing;
-and is simpler than the alternative.
-Do not create an interface for every class, unnecessary factories, generic frameworks,
-or architecture for hypothetical future requirements.
-Patterns are tools, not goals.
+Antes de agregar un patrón o una abstracción, verificá que represente una
+frontera, variación o composición real. Debería eliminar decisiones repetidas,
+aclarar el uso, mejorar las pruebas independientes y ser más simple que la
+alternativa. Evitá interfaces por clase, fábricas innecesarias, frameworks
+genéricos y arquitectura para requisitos hipotéticos. Usá patrones al servicio del diseño.
 
-## 8. Immutability and visible side effects
+## 8. Inmutabilidad y efectos secundarios visibles
 
-- Prefer Kotlin `val`, immutable objects/collections and pure functions.
-- Use pure functions for mapping, validation, transformations, calculations and domain rules.
-- Mutable state is acceptable when local, controlled, unshared and materially simpler.
-- Never use mutable in-memory state as durable application storage.
-- Keep HTTP, database, storage and logging side effects behind explicit boundaries.
-- Do not hide side effects in getters, property access, constructors or apparently pure functions.
+- Preferí `val` en Kotlin, objetos y colecciones inmutables y funciones puras.
+- Usá funciones puras para conversiones, validación, transformaciones, cálculos y reglas de dominio.
+- El estado mutable es aceptable si es local, controlado, de uso exclusivo y considerablemente más simple.
+- Usá persistencia durable para los datos que deban sobrevivir reinicios.
+- Conservá los efectos sobre HTTP, base de datos, almacenamiento y registros detrás de fronteras explícitas.
+- Evitá ocultar efectos en getters, propiedades, constructores o funciones aparentemente puras.
 
-## 9. Naming, organization and documentation
+## 9. Nombres, organización y documentación
 
-- Name classes and methods by intent, such as `CreateSnippetUseCase`,
-  `SnippetRepository` and `PrintScriptValidationClient`.
-- Prefer meaningful boolean names such as `isValid`, `hasAccess`, `isOwner` and `canUpdate`.
-- Avoid vague `Manager`, `Helper`, `Utils`, `Processor` or generic method names
-  unless they genuinely express a domain concept.
-- Group infrastructure by responsibility: persistence, HTTP, storage and configuration.
-  Do not create junk drawers such as `Common`, `Misc` or global `MapperUtils`.
-- Comments explain why, not obvious behavior.
-- Document decisions that cannot be reconstructed from the code, including ordering,
-  abstraction reasons, retry policies and accepted limitations.
-- Keep relevant documentation versioned near the code; do not mechanically duplicate code.
+- Nombrá clases y métodos por su intención, como `CreateSnippetUseCase`,
+  `SnippetRepository` y `PrintScriptValidationClient`.
+- Preferí nombres booleanos significativos, como `isValid`, `hasAccess`, `isOwner` y `canUpdate`.
+- Evitá nombres vagos como `Manager`, `Helper`, `Utils` o `Processor` salvo
+  que expresen un concepto del dominio.
+- Agrupá infraestructura por responsabilidad, como persistencia, HTTP,
+  almacenamiento y configuración. Evitá agrupaciones genéricas como
+  `Common`, `Misc` o un `MapperUtils` global.
+- Escribí comentarios que expliquen el motivo de las decisiones.
+- Documentá decisiones que no se puedan deducir del código, como el orden de una
+  operación, el motivo de una abstracción, las políticas de reintento y los límites aceptados.
+- Versioná la documentación relevante junto al código. Evitá repetir lo que ya se entiende al leerlo.
 
-## 10. Configuration, security and dependencies
+## 10. Configuración, seguridad y dependencias
 
-- Externalize environment-specific URLs, database settings, credentials, ports, timeouts,
-  feature flags and storage endpoints.
-- The same artifact must run in different environments through configuration, not source edits.
-- Never commit passwords, access tokens, API keys or private credentials in source,
-  committed environment/YAML files, Dockerfiles or fixtures.
-- Use environment variables or platform secret mechanisms.
-- Write application logs to stdout/stderr with useful operational context.
-  Do not create application-managed log files unless explicitly required.
-- Never log secrets, tokens, credentials or sensitive authentication information.
-- Declare dependencies in Gradle and prefer fixed, reproducible versions.
-- Do not rely on undocumented software manually installed on a developer's machine.
-- Prefer the standard library or existing dependencies when adequate.
-- Do not update unrelated dependencies during a ticket.
+- Externalizá URL, configuración de base de datos, credenciales, puertos,
+  tiempos de espera, indicadores de activación y destinos de almacenamiento.
+- Hacé que el mismo artefacto funcione en distintos ambientes mediante configuración externa.
+- Mantené contraseñas, tokens, claves de API y credenciales fuera del código,
+  archivos de entorno o YAML versionados, Dockerfiles y datos de prueba.
+- Usá variables de entorno o mecanismos de secretos de la plataforma.
+- Escribí registros útiles a stdout/stderr. Creá archivos de registro
+  administrados por la aplicación solo si se requieren explícitamente.
+- Excluí de los registros secretos, tokens, credenciales e información sensible de autenticación.
+- Declará dependencias en Gradle y preferí versiones fijas y reproducibles.
+- Evitá depender de software instalado manualmente sin documentación.
+- Preferí la biblioteca estándar o dependencias existentes cuando alcancen.
+- Mantené fuera del ticket las actualizaciones de dependencias ajenas al pedido.
 
-## 11. Tests and verification
+## 11. Pruebas y verificación
 
-- Test behavior with meaningful assertions, not private implementation details or call counts alone.
-- Prefer unit tests for domain rules, pure functions, mappings, validation and application behavior.
-  These should normally run without Spring startup, network, PostgreSQL or Docker.
-- Use integration tests for persistence, HTTP, serialization, Spring wiring and real boundaries.
-- Extensive mocking of business logic is a reason to reconsider hidden dependencies,
-  mixed responsibilities, shared state or infrastructure coupling.
-- Test strategies independently; test dispatcher selection and composite orchestration separately
-  when useful so failures identify the responsible behavior.
-- Coverage is useful information, not proof of correctness.
-- Respect the Kotlin compiler, ktlint, detekt, tests and configured Gradle checks.
-- Do not disable global rules, comment out failing tests, ignore build failures,
-  introduce temporary bypasses or leave unresolved TODOs merely to make checks pass.
-- Keep justified suppressions local and explain their reason.
+- Probá comportamiento con afirmaciones significativas. Evitá depender solo
+  de detalles privados o del número de llamadas.
+- Preferí pruebas unitarias para reglas, funciones puras, conversiones,
+  validación y comportamiento de aplicación. Deberían ejecutarse normalmente
+  sin iniciar Spring ni usar red, PostgreSQL o Docker.
+- Usá integración para persistencia, HTTP, serialización, configuración de Spring y fronteras reales.
+- Si una prueba de negocio necesita muchos reemplazos simulados, revisá dependencias
+  ocultas, responsabilidades mezcladas, estado compartido y acoplamiento a infraestructura.
+- Probá estrategias de forma independiente. Probá por separado la selección del
+  despachador y la orquestación del compuesto cuando ayude a identificar los fallos.
+- Usá la cobertura como información. Comprobá la corrección con afirmaciones sobre el comportamiento.
+- Respetá el compilador de Kotlin, ktlint, Detekt, las pruebas y las comprobaciones de Gradle.
+- Mantené activas las reglas globales y las pruebas. Corregí fallos sin introducir
+  omisiones temporales o TODO solo para hacer pasar la tarea.
+- Si una supresión está justificada, acotala y explicá su motivo.
 
-For code changes, verify through the project's reproducible command:
+Para cambios de código, verificá con el comando reproducible del proyecto:
 
 ```bash
 ./gradlew build
 ```
 
-The build must compile, run configured checks/tests and package the application.
-Do not require undocumented preparation or consider implementation finished with a red build.
-AI-generated code still requires compiler, static-analysis, test and build verification.
-Fix or explicitly report existing failures; do not normalize a broken main branch.
+La construcción debe compilar, ejecutar las comprobaciones y pruebas
+configuradas, y empaquetar la aplicación. Documentá cualquier preparación y
+dá por terminada la implementación con la construcción en verde.
+El código generado con IA requiere las mismas comprobaciones de compilación,
+análisis estático, pruebas y empaquetado.
+Corregí o reportá explícitamente fallos existentes en la rama principal.
 
-## 12. Before finishing
+## 12. Antes de terminar
 
-Confirm correct service/layer ownership, explicit workflows, isolated HTTP/persistence details,
-focused scope, readable names, appropriate immutability, visible side effects, no duplicated rules,
-no speculative abstractions, preserved diagnostics, external configuration and absence of secrets.
-Check relevant tests, independently testable strategies and a green build.
-Fix unmet rules or explicitly justify necessary exceptions.
+Comprobá que la responsabilidad corresponda al servicio y la capa correctos,
+que el flujo sea explícito y que HTTP y persistencia estén aislados. Revisá el
+alcance, los nombres, la inmutabilidad, los efectos visibles, la ausencia de
+reglas duplicadas y de abstracciones especulativas, la conservación de
+diagnósticos, la configuración externa y la ausencia de secretos.
+Verificá las pruebas relevantes, la capacidad de probar cada estrategia y la
+construcción en verde. Corregí las reglas incumplidas o justificá la excepción.

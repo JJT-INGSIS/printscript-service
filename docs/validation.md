@@ -297,30 +297,11 @@ El pedido es correcto. El test reemplaza la validación por una que falla, porqu
 
 ## Alcance de la validación
 
-**Qué pide la consigna.** Al crear o actualizar un snippet (US1–4), el código tiene que ser válido para el lenguaje y la versión elegidos. Si no lo es, hay que informar qué regla incumple y en qué línea y columna.
+El servicio traduce el resultado de la biblioteca para la versión solicitada.
+La validación analiza léxico, sintaxis y semántica, incluyendo ambas ramas de
+un `if`. Ejecutar el programa y evaluar reglas de estilo son operaciones
+separadas.
 
-**Qué hace este servicio.** Entrega el código al validador de la biblioteca para la versión pedida y traduce su respuesta. No agrega ni quita comprobaciones: "válido" significa "la biblioteca lo acepta".
-
-**Qué comprueba la biblioteca.**
-
-1. Léxico: todos los caracteres pertenecen al lenguaje, los textos se cierran y los números están bien escritos.
-2. Sintaxis: cada sentencia tiene la forma que la versión admite.
-3. Semántica, sin ejecutar:
-    - una variable se declara antes de usarse y recibe un valor antes de leerse;
-    - no se declara dos veces el mismo nombre en un mismo bloque;
-    - una constante no se reasigna;
-    - el valor asignado coincide con el tipo declarado;
-    - los operandos son de tipos que el operador admite;
-    - la condición de un `if` es `boolean`;
-    - el argumento de `readInput` y de `readEnv` es `string`.
-
-   Revisa las dos ramas de cada `if`, incluida la que no se ejecutaría.
-
-**Qué no comprueba.**
-
-- No ejecuta el código. Una división por cero, una variable de entorno que no existe o una entrada que no se puede convertir al tipo esperado son errores de ejecución, no de validación.
-- No aplica reglas de linting. La convención de nombres y las restricciones sobre los argumentos de `println` y `readInput` son reglas configurables del linter: un código que las incumple sigue siendo válido.
-- Es conservadora: si una variable recibe su valor en una sola rama de un `if`, después del `if` se la considera sin valor.
 
 #### `200` No ejecuta el código
 
